@@ -13,3 +13,7 @@ __pycache__/
 venv/
 .venv/
 lords_shop.db
+
+SECURITY_AND_UI_IMPROVEMENTS.md
+RELEASE_READINESS_REPORT.md
+I18N_TRANSLATION_GUIDE.md
