@@ -1,69 +1,112 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Header from './components/Header';
 
-// Імпорт всіх наших сторінок
+// 📦 ОСНОВНІ БІБЛІОТЕКИ ТА РОУТИНГ
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+
+// 🧠 ПРОВАЙДЕРИ СТАНУ (Context API)
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
+import { CompareProvider } from './context/CompareContext';
+
+// 🧩 ГЛОБАЛЬНІ КОМПОНЕНТИ (UI елементи)
+import Header from './components/Header';
+import Footer from './components/Footer';
+import AdminRoute from './components/AdminRoute';
+import ErrorBoundary from './components/ErrorBoundary'; 
+
+// 🛍️ ОСНОВНІ СТОРІНКИ МАГАЗИНУ ТА ПРОФІЛЮ
 import Home from './pages/Home';
 import Resources from './pages/Resources';
 import Accounts from './pages/Accounts';
 import AccountDetails from './pages/AccountDetails';
 import Cart from './pages/Cart';
 import Profile from './pages/Profile';
+import TopUp from './pages/TopUp';
+import Compare from './pages/Compare'; // 🔥 ІМПОРТ СТОРІНКИ ПОРІВНЯННЯ
+
+// 💎 ІНСТРУМЕНТИ ТА ДОДАТКОВІ ТОВАРИ
 import GemsBuilder from './pages/GemsBuilder';
-import Admin from './pages/Admin'; // ІМПОРТ АДМІНКИ
-import Sapphires from './pages/Sapphires'; // імпорт інших ціностей 
-import Footer from './components/Footer'; // імпорт футер 
-import Guarantees from './pages/Guarantees'; // імпорт гарантії та FAQ
-import { Toaster } from 'react-hot-toast'; // імпорт Toasts
-import EditAccount from './pages/EditAccount'; // імпорт редагування аку
-import Calculator from './pages/Calculator'; // калькулятор 
-import SHARINGAN from './pages/SHARINGAN'; // пасхалка
+import Sapphires from './pages/Sapphires';
+import Calculator from './pages/Calculator';
+
+// 🛡️ ІНФО, АДМІНКА ТА ПАСХАЛКИ
+import Guarantees from './pages/Guarantees';
+import Admin from './pages/Admin';
+import EditAccount from './pages/EditAccount';
+import SHARINGAN from './pages/SHARINGAN';
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-slate-950">
-        <Header />
-        <Toaster 
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: '#1e293b', // bg-slate-800
-              color: '#fff',
-              border: '1px solid #334155', // border-slate-700
-            },
-            success: {
-              iconTheme: { primary: '#10b981', secondary: '#fff' }, // emerald-500
-            },
-          }}
-        />
-        <main className="container mx-auto px-4 pt-6">
-          
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/gems-builder" element={<GemsBuilder />} />
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/accounts/:id" element={<AccountDetails />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/admin/edit-account/:id" element={<EditAccount />} />
-            <Route path="/calculator" element={<Calculator />} />
-            <Route path="/easter-egg" element={<SHARINGAN />} />
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <CompareProvider>
+              <BrowserRouter>
+                <div className="min-h-screen bg-slate-950 flex flex-col">
+                  <Header />
+                
+                <Toaster 
+                  position="bottom-right"
+                  toastOptions={{
+                    style: {
+                      background: '#1e293b',
+                      color: '#fff',
+                      border: '1px solid #334155',
+                    },
+                    success: {
+                      iconTheme: { primary: '#10b981', secondary: '#fff' },
+                    },
+                  }}
+                />
+                
+                <main className="container mx-auto px-4 pt-6 flex-1">
+                  <Routes>
+                    {/* Відкриті маршрути */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/resources" element={<Resources />} />
+                    <Route path="/accounts" element={<Accounts />} />
+                    <Route path="/accounts/:id" element={<AccountDetails />} />
+                    <Route path="/sapphires" element={<Sapphires />} />
+                    
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/topup" element={<TopUp />} />
+                    
+                    {/* 🔥 ДОДАНО МАРШРУТ ПОРІВНЯННЯ 🔥 */}
+                    <Route path="/compare" element={<Compare />} /> 
+                    
+                    <Route path="/gems-builder" element={<GemsBuilder />} />
+                    <Route path="/calculator" element={<Calculator />} />
+                    
+                    <Route path="/guarantees" element={<Guarantees />} />
+                    <Route path="/easter-egg" element={<SHARINGAN />} />
 
-              {/* 3. ДОДАЛИ МАРШРУТ гарантії та FAQ */}
-            <Route path="/guarantees" element={<Guarantees />} />
-
-            {/* 2. ДОДАЛИ МАРШРУТ ДЛЯ АДМІН-ПАНЕЛІ */}
-            <Route path="/admin" element={<Admin />} />
-            
-            <Route path="/sapphires" element={<Sapphires />} />
-            
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </BrowserRouter>
+                    {/* ЗАКРИТІ МАРШРУТИ АДМІН-ПАНЕЛІ */}
+                    <Route path="/admin" element={
+                      <AdminRoute>
+                        <Admin />
+                      </AdminRoute>
+                    } />
+                    
+                    <Route path="/admin/edit-account/:id" element={
+                      <AdminRoute>
+                        <EditAccount />
+                      </AdminRoute>
+                    } />
+                  </Routes>
+                </main>
+                
+                  <Footer />
+                </div>
+              </BrowserRouter>
+            </CompareProvider>
+          </WishlistProvider>
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

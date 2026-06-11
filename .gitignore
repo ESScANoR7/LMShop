@@ -2,6 +2,10 @@
 node_modules/
 dist/
 .env
+.idea/
+.DS_Store
+*.swp
+*.swo
 
 # Backend
 __pycache__/

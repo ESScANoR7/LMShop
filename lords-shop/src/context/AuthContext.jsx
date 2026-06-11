@@ -1,80 +1,89 @@
 import React, { createContext, useState, useContext } from 'react';
 
-const AuthContext = createContext();
+const AuthContext = createContext({
+  isLoggedIn: false,
+  user: null, 
+  isAuthLoading: false, // Нам більше не треба чекати!
+  login: () => {},
+  logout: () => {},
+  updateBalance: () => {}
+});
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState(null);
-  
-  // Стан для активної додаткової знижки
-  const [promoDiscount, setPromoDiscount] = useState(0); 
+  // 🔥 СИНХРОННА ІНІЦІАЛІЗАЦІЯ 🔥
+  // Читаємо localStorage одразу, до того як React Router почне перевіряти права
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user_data');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        // Нормалізуємо ID (на випадок, якщо бекенд повернув user_id замість id)
+        if (parsedUser.user_id && !parsedUser.id) {
+          parsedUser.id = parsedUser.user_id;
+        }
+        return parsedUser;
+      }
+    } catch (e) {
+      console.error("Помилка парсингу даних користувача:", e);
+      localStorage.removeItem('user_data');
+    }
+    return null;
+  });
 
-  // --- ДИНАМІЧНА БАЗА ПРОМОКОДІВ (Заготовка для Адмінки) ---
-  const [promoDatabase, setPromoDatabase] = useState([
-    { code: 'VIP5', discount: 0.05 },
-    { code: 'LORDS10', discount: 0.10 }
-  ]);
+  // Одразу ставимо true, якщо юзер є
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('user_data'));
+  
+  // Ми прочитали дані миттєво, тому стан завантаження більше не потрібен
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const login = (userData) => {
+    // Гарантуємо, що завжди є поле id
+    const normalizedUser = {
+      ...userData,
+      id: userData.id || userData.user_id
+    };
+    
+    setUser(normalizedUser);
     setIsLoggedIn(true);
-    setUser(userData || { name: 'Player1', email: 'player@lords.com', role: 'user' });
+
+    localStorage.setItem('user_data', JSON.stringify(normalizedUser));
+    localStorage.setItem('user_id', normalizedUser.id);
+    // Токени тепер безпечно лежать в HttpOnly Cookies, нам не треба їх чіпати
   };
 
-  const logout = () => {
-    setIsLoggedIn(false);
+  const logout = async () => {
+    // Викидаємо запит на бекенд, щоб він "вбив" (очистив) HttpOnly cookies
+    try {
+      await fetch('http://localhost:8000/api/logout', {
+        method: 'POST',
+        credentials: 'include' // Обов'язково передаємо куки для їх видалення
+      });
+    } catch (error) {
+      console.error('Помилка при logout на сервері:', error);
+    }
+
+    // Очищаємо фронтенд
     setUser(null);
-    setPromoDiscount(0); // Скидаємо промокод при виході
+    setIsLoggedIn(false);
+
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('access_token'); // Якщо раптом залишився від старої версії
+    localStorage.removeItem('refresh_token'); 
   };
 
-  // --- ФУНКЦІЯ ДЛЯ КЛІЄНТА: Активація промокоду ---
-  const applyPromo = (code) => {
-    const formattedCode = code.trim().toUpperCase();
-    
-    // Шукаємо введений код у нашій динамічній базі
-    const foundPromo = promoDatabase.find(p => p.code === formattedCode);
-    
-    if (foundPromo) {
-      setPromoDiscount(foundPromo.discount); 
-      return { success: true, message: `Промокод застосовано! Додаткова знижка ${foundPromo.discount * 100}%` };
+  const updateBalance = (newBalance) => {
+    if (user) {
+      const updatedUser = { ...user, balance: newBalance };
+      setUser(updatedUser);
+      localStorage.setItem('user_data', JSON.stringify(updatedUser));
     }
-    
-    return { success: false, message: 'Невірний або прострочений промокод' };
-  };
-
-  // --- ФУНКЦІЇ ДЛЯ АДМІНА: Керування промокодами ---
-  const adminAddPromo = (newCode, discountValue) => {
-    setPromoDatabase(prev => [
-      ...prev, 
-      { code: newCode.trim().toUpperCase(), discount: parseFloat(discountValue) }
-    ]);
-  };
-
-  const adminRemovePromo = (codeToRemove) => {
-    setPromoDatabase(prev => prev.filter(p => p.code !== codeToRemove));
-  };
-
-  // Оновлена функція ціни
-  const getPrice = (basePrice) => {
-    const price = parseFloat(basePrice);
-    
-    if (isLoggedIn) {
-      // Якщо увійшов -> базова ціна мінус знижка від промокоду
-      const discountedPrice = price * (1 - promoDiscount);
-      return discountedPrice.toFixed(2);
-    }
-    
-    // Якщо гість -> базова ціна + 10%
-    return (price * 1.10).toFixed(2); 
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      isLoggedIn, user, login, logout, getPrice, applyPromo, promoDiscount,
-      // Віддаємо ці дані назовні, щоб Адмінка могла ними користуватися:
-      promoDatabase, adminAddPromo, adminRemovePromo 
-    }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, isAuthLoading, login, logout, updateBalance }}>
       {children}
     </AuthContext.Provider>
   );

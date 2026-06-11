@@ -8,7 +8,7 @@ const SharinganEye = ({ isLeft }) => {
     : "M 20 100 Q 150 -20 280 50 Q 150 160 20 100 Z";
 
   return (
-    <svg viewBox="0 0 300 150" className="sharingan-svg w-[140px] sm:w-[200px] md:w-[320px] drop-shadow-[0_0_50px_rgba(255,0,0,0.2)]">
+    <svg viewBox="0 0 300 150" className="sharingan-svg w-[140px] sm:w-[200px] md:w-[320px] drop-shadow-[0_0_50px_rgba(255,0,0,0.3)]">
       <defs>
         <clipPath id={`eye-clip-${isLeft}`}>
           <path d={eyePath} />
@@ -60,7 +60,7 @@ const SHARINGAN = () => {
   }, []);
 
   return (
-    <div id="easter-egg-page" className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#450a0a]/60 via-[#020202] to-black p-4">
+    <div id="easter-egg-page" className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#5a0000] via-[#100000] to-black p-4">
       
       <style>{`
         .eye-frame-group { animation: frame-close 14s ease-in-out infinite; }
@@ -78,48 +78,49 @@ const SHARINGAN = () => {
         .layer-ems { animation: fade-in 12s ease-in-out infinite; }
         @keyframes fade-out { 0%, 35%, 85%, 100% { opacity: 1; transform: scale(1); filter: blur(0px); } 45%, 75% { opacity: 0; transform: scale(0.6); filter: blur(15px); } }
         @keyframes fade-in { 0%, 35%, 85%, 100% { opacity: 0; transform: scale(1.5); filter: blur(15px); } 45%, 75% { opacity: 1; transform: scale(1); filter: blur(0px); } }
-        .genjutsu-title { text-shadow: 0 0 20px rgba(255, 0, 0, 0.4); animation: pulse-red 4s ease-in-out infinite; }
-        @keyframes pulse-red { 0%, 100% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.01); } }
+        .genjutsu-title { text-shadow: 0 0 25px rgba(239, 68, 68, 0.7); animation: pulse-red 4s ease-in-out infinite; }
+        @keyframes pulse-red { 0%, 100% { opacity: 0.9; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } }
       `}</style>
 
       {/* ОЧІ */}
-      <div className="flex justify-center items-center gap-4 md:gap-8 mb-4">
+      <div className="flex justify-center items-center gap-4 md:gap-8 mb-4 mt-2">
         <SharinganEye isLeft={true} />
         <SharinganEye isLeft={false} />
       </div>
 
       {/* КОНТЕНТ */}
       <div className="text-center z-10 w-full max-w-2xl">
-        <h1 className="genjutsu-title text-3xl sm:text-4xl md:text-5xl font-black text-[#8b0000] mb-2 tracking-widest uppercase">
+        <h1 className="genjutsu-title text-3xl sm:text-4xl md:text-5xl font-black text-red-500 mb-2 tracking-widest uppercase">
           Ти потрапив у гендзюцу
         </h1>
         
         {secretCode ? (
           <div className="flex flex-col items-center">
-            <p className="text-red-900/60 text-[10px] sm:text-xs md:text-sm italic mb-2">
+            <p className="text-red-200/70 text-[10px] sm:text-xs md:text-sm italic mb-1">
               "Під час нескінченної подорожі ти знайшов записку..."
             </p>
             
-            <ChevronsDown className="w-6 h-6 text-red-950 mb-2 animate-bounce opacity-40" />
+            <ChevronsDown className="w-5 h-5 text-red-600 mb-3 animate-bounce opacity-80" />
 
-            <div className="relative group scale-90 sm:scale-100">
-              <div className="absolute -inset-1 bg-red-900/10 rounded-xl blur-2xl transition duration-1000 group-hover:opacity-30"></div>
-              <div className="relative bg-black/80 border border-red-950/50 rounded-xl px-8 py-5 md:px-12 md:py-8 shadow-[0_0_50px_rgba(0,0,0,1)] backdrop-blur-md">
-                <div className="text-red-950 font-bold uppercase tracking-[0.3em] text-[8px] md:text-[10px] mb-3">Секретний промокод</div>
-                <div className="text-4xl md:text-6xl font-black text-[#b30000] tracking-wider select-all drop-shadow-[0_0_15px_rgba(179,0,0,0.6)]">
+            {/* ЗМЕНШЕНИЙ БЛОК ПРОМОКОДУ */}
+            <div className="relative group inline-block">
+              <div className="absolute -inset-1 bg-red-600/20 rounded-lg blur-md transition duration-1000 group-hover:opacity-60"></div>
+              <div className="relative bg-black/80 border border-red-900/60 rounded-lg px-6 py-3 md:px-8 md:py-4 shadow-[0_0_25px_rgba(0,0,0,0.8)] backdrop-blur-md">
+                <div className="text-red-400/80 font-bold uppercase tracking-[0.2em] text-[7px] md:text-[9px] mb-1.5">Секретний промокод</div>
+                <div className="text-2xl md:text-4xl font-black text-red-500 tracking-wider select-all drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">
                   {secretCode}
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-red-950 font-serif italic tracking-widest uppercase text-[10px] mt-4 opacity-30">
+          <div className="text-red-400/60 font-serif italic tracking-widest uppercase text-[10px] mt-4">
             Темрява поглинула твій шанс...
           </div>
         )}
 
         <div className="mt-8">
-          <Link to="/" className="inline-flex items-center gap-2 px-6 py-2 text-red-950 hover:text-red-800 border border-red-950/20 hover:border-red-900/40 rounded-full transition-all duration-700 uppercase tracking-[0.2em] text-[9px] font-bold bg-black/40">
+          <Link to="/" className="inline-flex items-center gap-2 px-6 py-2 text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-500/50 rounded-full transition-all duration-500 uppercase tracking-[0.2em] text-[9px] font-bold bg-black/60 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
             <ArrowLeft className="w-3 h-3" /> Розвіяти ілюзію
           </Link>
         </div>

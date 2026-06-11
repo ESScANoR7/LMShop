@@ -6,10 +6,12 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext'; 
 import toast from 'react-hot-toast'; 
+import { useTranslation } from 'react-i18next'; // 🔥 ІМПОРТ ПЕРЕКЛАДІВ
 
 const AccountDetails = () => {
   const { id } = useParams();
   const { addToCart } = useCart(); 
+  const { t } = useTranslation(); // 🔥 ІНІЦІАЛІЗАЦІЯ ПЕРЕКЛАДУ
   
   const [account, setAccount] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +53,7 @@ const AccountDetails = () => {
   const handleBuy = () => {
     if (!account) return;
     addToCart({ product: account, type: 'account', price: account.price });
-    toast.success('Акаунт додано до кошика!');
+    toast.success(t('accounts.addToCart') + '!'); // Або можна створити окремий ключ для success
   };
 
   const resetZoom = () => {
@@ -148,14 +150,14 @@ const AccountDetails = () => {
   };
 
   if (isLoading) {
-    return <div className="text-center text-slate-400 py-20 text-xl font-bold animate-pulse">Завантаження даних акаунта...</div>;
+    return <div className="text-center text-slate-400 py-20 text-xl font-bold animate-pulse">{t('common.loading')}</div>;
   }
 
   if (!account) {
     return (
       <div className="text-center text-white py-20 flex flex-col items-center">
-        <h2 className="text-2xl font-bold mb-4">Акаунт не знайдено</h2>
-        <Link to="/accounts" className="px-6 py-3 bg-blue-600 rounded-xl font-bold">Повернутися до галереї</Link>
+        <h2 className="text-2xl font-bold mb-4">{t('accounts.noAccounts')}</h2>
+        <Link to="/accounts" className="px-6 py-3 bg-blue-600 rounded-xl font-bold">{t('accountDetails.backToGallery')}</Link>
       </div>
     );
   }
@@ -165,7 +167,7 @@ const AccountDetails = () => {
   return (
     <div className="pb-20 pt-8 max-w-5xl mx-auto px-4">
       <Link to="/accounts" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
-        <ArrowLeft className="w-5 h-5" /> Назад
+        <ArrowLeft className="w-5 h-5" /> {t('accountDetails.backToGallery')}
       </Link>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -181,7 +183,7 @@ const AccountDetails = () => {
                 <img src={account.images[activeImage]} alt="Фото" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                    <span className="text-white font-bold bg-slate-900/80 border border-slate-700 px-6 py-3 rounded-xl backdrop-blur-sm flex items-center gap-2">
-                     <ImageIcon className="w-5 h-5" /> Розгорнути
+                     <ImageIcon className="w-5 h-5" /> {t('common.viewAll')} {/* Або додай ключ 'expand' */}
                    </span>
                 </div>
               </>
@@ -228,14 +230,14 @@ const AccountDetails = () => {
           )}
 
           <div className="mb-8">
-            <h3 className="text-lg font-bold text-white mb-3">Опис акаунта</h3>
+            <h3 className="text-lg font-bold text-white mb-3">{t('accountDetails.description')}</h3>
             <p className="text-slate-400 leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800 whitespace-pre-line">
               {account.shortDesc || 'Опис відсутній.'}
             </p>
           </div>
 
           <button onClick={handleBuy} className="mt-auto w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl flex justify-center items-center gap-2 shadow-lg shadow-blue-900/20 transition-all hover:-translate-y-1">
-            <CheckCircle2 className="w-6 h-6" /> Придбати акаунт
+            <CheckCircle2 className="w-6 h-6" /> {t('accountDetails.buyNow')}
           </button>
         </div>
       </div>
@@ -351,4 +353,4 @@ const AccountDetails = () => {
   );
 };
 
-export default AccountDetails;
+export default AccountDetails; 

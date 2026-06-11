@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Save, Image as ImageIcon, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiGet, apiPut, handleApiError } from '../config/apiClient';
+import { API_ENDPOINTS, getFullUrl } from '../config/api';
 
 const EditAccount = () => {
   const { id } = useParams();
@@ -23,28 +25,25 @@ const EditAccount = () => {
   useEffect(() => {
     const fetchAccount = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/accounts');
-        if (response.ok) {
-          const data = await response.json();
-          const foundAccount = data.find(acc => acc.id === parseInt(id));
-          
-          if (foundAccount) {
-            // Заповнюємо поля даними з бази
-            setAccTitle(foundAccount.title);
-            setAccShortDesc(foundAccount.shortDesc);
-            setPrice(foundAccount.price);
-            setAccTags(foundAccount.tags ? foundAccount.tags.join(', ') : '');
-            setAccBind(foundAccount.bind || '');
-            
-            // Розподіляємо картинки: перша -> головна, інші -> додаткові
-            if (foundAccount.images && foundAccount.images.length > 0) {
-              setMainImage(foundAccount.images[0]);
-              setAdditionalImages(foundAccount.images.slice(1));
-            }
+        const data = await apiGet(getFullUrl(API_ENDPOINTS.ACCOUNTS));
+        const foundAccount = data.find(acc => acc.id === parseInt(id));
+
+        if (foundAccount) {
+          // Заповнюємо поля даними з бази
+          setAccTitle(foundAccount.title);
+          setAccShortDesc(foundAccount.shortDesc);
+          setPrice(foundAccount.price);
+          setAccTags(foundAccount.tags ? foundAccount.tags.join(', ') : '');
+          setAccBind(foundAccount.bind || '');
+
+          // Розподіляємо картинки: перша -> головна, інші -> додаткові
+          if (foundAccount.images && foundAccount.images.length > 0) {
+            setMainImage(foundAccount.images[0]);
+            setAdditionalImages(foundAccount.images.slice(1));
           }
         }
       } catch (error) {
-        toast.error("Помилка завантаження даних");
+        handleApiError(error, "Помилка завантаження даних");
       } finally {
         setIsLoading(false);
       }
@@ -88,26 +87,18 @@ const EditAccount = () => {
       price: price.toString(),
       tags: accTags,
       bind: accBind,
-      images: [mainImage, ...additionalImages].filter(Boolean) 
+      images: [mainImage, ...additionalImages].filter(Boolean)
     };
 
     const toastId = toast.loading('Оновлення в базі даних...');
 
     try {
-      const response = await fetch(`http://localhost:8000/api/accounts/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
-      });
-
-      if (response.ok) {
-        toast.success('Акаунт успішно оновлено!', { id: toastId });
-        navigate('/admin'); // Повертаємо в адмінку після збереження
-      } else {
-        toast.error('Помилка сервера.', { id: toastId });
-      }
+      await apiPut(getFullUrl(API_ENDPOINTS.ACCOUNT_UPDATE(id)), updatedData);
+      toast.success('Акаунт успішно оновлено!', { id: toastId });
+      navigate('/admin'); // Повертаємо в адмінку після збереження
     } catch (error) {
-      toast.error('Немає зв\'язку з базою.', { id: toastId });
+      handleApiError(error, 'Помилка оновлення акаунта');
+      toast.dismiss(toastId);
     }
   };
 

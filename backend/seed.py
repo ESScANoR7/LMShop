@@ -1,18 +1,37 @@
 import requests
-import json
+import sys
 import time
 
 BASE_URL = "http://localhost:8000/api"
 
+print("🚀 Починаємо генерацію тестових даних для Lords Shop...\n")
+print("🔒 БЕЗПЕКА УВІМКНЕНА: Для додавання товарів потрібен доступ Адміністратора.")
+
+# Використовуємо сесію для автоматичного керування HttpOnly Cookies
+session = requests.Session()
+
+# =======================================
+# 0. АВТОРИЗАЦІЯ (ОТРИМАННЯ СЕСІЇ)
+# =======================================
+admin_username = input("👉 Введіть логін Адміна: ")
+admin_password = input("👉 Введіть пароль Адміна: ")
+
+login_res = session.post(f"{BASE_URL}/login", json={
+    "username": admin_username,
+    "password": admin_password
+})
+
+if login_res.status_code != 200:
+    print(f"\n❌ Помилка авторизації! Перевірте логін та пароль. ({login_res.text})")
+    sys.exit(1)
+
+print("✅ Авторизація успішна! HttpOnly Cookies отримано та збережено в сесії.\n")
 
 def print_status(response, item_name):
     if response.status_code == 200:
-        print(f"✅ Додано: {item_name}")
+        print(f"✅ Додано/Оновлено: {item_name}")
     else:
-        print(f"❌ Помилка додавання {item_name}: {response.text}")
-
-
-print("🚀 Починаємо генерацію тестових даних для Lords Shop...\n")
+        print(f"❌ Помилка для {item_name}: {response.status_code} - {response.text}")
 
 # =======================================
 # 1. СТВОРЮЄМО АКАУНТИ З ФОТО ТА СТАТУСАМИ
@@ -20,87 +39,86 @@ print("🚀 Починаємо генерацію тестових даних д
 accounts = [
     {
         "data": {
-            "title": "🔥 ТОП Акаунт 1.5B Міці (Міфічний шмот)",
-            "shortDesc": "Ідеальний бойовий акаунт. Відкриті T5, багато донатних героїв, 500k+ самоцвітів на рахунку.",
-            "price": "350.00",
-            "tags": "1.5B, T5, Міфік, ТОП",
+            "title": "Low Might - 1200+MM ‼️",
+            "shortDesc": "Can go K1178✈️\n1204-1140-1180% Blast\n118 ⭐️ 29 Blessed Artefacts\nMax Fams - 817% HP\n10 Champ - 4 cups\nInstallment possible",
+            "price": "850.00",
+            "base_price": "750.00",
+            "tags": "1200+MM, Champ, K1178",
             "bind": "Facebook + Gmail",
             "images": [
-                "https://picsum.photos/id/10/800/450",  # Головне фото (Ліс/Пейзаж)
-                "https://picsum.photos/id/11/800/450"  # Додаткове фото
-            ]
+                "https://picsum.photos/id/10/800/450",
+                "https://picsum.photos/id/11/800/450"
+            ],
+            "stats": {
+                "might": "1200+MM",
+                "mix_atk": "1204-1140-1180%",
+                "heroes": "10 Champ",
+                "artifacts": "29 Blessed"
+            }
         },
-        "status": "active"  # В продажі
+        "status": "active"
     },
     {
         "data": {
-            "title": "🛡️ Пастка (Rally Trap) 400M",
-            "shortDesc": "Готова пастка для приймання зборів. Мільйони військ Т2, високі стати.",
-            "price": "85.50",
-            "tags": "Пастка, 400M, T2/T4",
-            "bind": "Тільки Steam",
-            "images": [
-                "https://picsum.photos/id/12/800/450"
-            ]
-        },
-        "status": "processing"  # На обробці (куплений, але ще не переданий)
-    },
-    {
-        "data": {
-            "title": "🌾 Ферма 200M (Гіпер-Дерево)",
-            "shortDesc": "Виробляє 50M дерева на добу. Є багато ресурсів у рюкзаку.",
-            "price": "25.00",
-            "tags": "Ферма, Дерево, 200M",
+            "title": "5900+mm‼️ 1634-1632-1678% stats",
+            "shortDesc": "3 Lv.15 Champs\n288 Castle 🌟161 Blessed ⭐️\n3 Leader skins, Lv.5 Castle\n3 wow artifacts\nInstallment possible",
+            "price": "2500.00",
+            "base_price": "2200.00",
+            "tags": "5900+mm, Lv.15 Champs, 1600+ stats",
             "bind": "Google",
             "images": [
-                "https://picsum.photos/id/13/800/450",
-                "https://picsum.photos/id/14/800/450"
-            ]
+                "https://picsum.photos/id/12/800/450"
+            ],
+            "stats": {
+                "might": "5900+MM",
+                "mix_atk": "1634-1632-1678%",
+                "heroes": "3 Lv.15 Champs",
+                "artifacts": "161 Blessed"
+            }
         },
-        "status": "sold"  # ПРОДАНО
+        "status": "active"
     }
 ]
 
-print("🛡️ Генерація Акаунтів...")
+print("🛡️ Generation of Accounts...")
 for acc in accounts:
-    # Спочатку створюємо акаунт
-    res = requests.post(f"{BASE_URL}/accounts", json=acc["data"])
+    res = session.post(f"{BASE_URL}/accounts", json=acc["data"])
     print_status(res, acc["data"]["title"])
 
-    # Якщо акаунт створено і йому треба змінити статус
     if res.status_code == 200 and acc["status"] != "active":
         acc_id = res.json().get("id")
         if acc_id:
-            # Викликаємо наш новий маршрут для зміни статусу
-            status_res = requests.put(f"{BASE_URL}/accounts/{acc_id}/status", json={"status": acc["status"]})
+            status_res = session.put(f"{BASE_URL}/accounts/{acc_id}/status", json={"status": acc["status"]})
             if status_res.status_code == 200:
                 print(f"   🔄 Статус змінено на: {acc['status']}")
-
     time.sleep(0.1)
 
 # =======================================
 # 2. СТВОРЮЄМО РЕСУРСИ ТА САМОЦВІТИ
 # =======================================
 resources = [
-    {"name": "Дерево", "desc": "1 Мільярд Дерева", "price": "1.50"},
-    {"name": "Руда", "desc": "1 Мільярд Руди", "price": "1.50"},
-    {"name": "Камінь", "desc": "1 Мільярд Каменю", "price": "1.50"},
-    {"name": "Золото", "desc": "1 Мільярд Золота", "price": "3.00"}
+    {"name": "Package 44444", "desc": "Standard RSS Package 44444", "price": "0.80", "base_price": "0.70"},
+    {"name": "Package 44442", "desc": "Standard RSS Package 44442", "price": "0.60", "base_price": "0.50"},
+    {"name": "Package 44440", "desc": "Standard RSS Package 44440", "price": "0.40", "base_price": "0.30"},
+    {"name": "Package 22222", "desc": "Standard RSS Package 22222", "price": "0.60", "base_price": "0.50"},
+    {"name": "Package 11111", "desc": "Standard RSS Package 11111", "price": "0.40", "base_price": "0.30"},
+    {"name": "4B Food", "desc": "4 Billion Food Package", "price": "0.40", "base_price": "0.30"}
 ]
 
 gems = [
-    {"range": "0 - 100K", "rate": "0.15"},
-    {"range": "100K - 500K", "rate": "0.13"},
-    {"range": "500K+", "rate": "0.10"}
+    {"range": "0-790m", "rate": "3.50", "base_price": "3.50"},
+    {"range": "790-1090m", "rate": "3.60", "base_price": "3.55"},
+    {"range": "1090-1390m", "rate": "3.70", "base_price": "3.65"},
+    {"range": "1390-2490m", "rate": "3.75", "base_price": "3.70"}
 ]
 
-print("\n📦 Генерація Ресурсів...")
-requests.post(f"{BASE_URL}/resources/bulk", json=resources)
-print("✅ Додано: Пакунки Ресурсів")
+print("\n📦 Generation of Resources...")
+res_rss = session.post(f"{BASE_URL}/resources/bulk", json=resources)
+print_status(res_rss, "Пакунки Ресурсів")
 
-print("\n💎 Генерація Самоцвітів...")
-requests.post(f"{BASE_URL}/gems/bulk", json=gems)
-print("✅ Додано: Тарифи на Самоцвіти")
+print("\n💎 Generation of Gems...")
+res_gems = session.post(f"{BASE_URL}/gems/bulk", json=gems)
+print_status(res_gems, "Тарифи на Самоцвіти")
 
 # =======================================
 # 3. СТВОРЮЄМО ІНШІ ТОВАРИ
@@ -110,6 +128,7 @@ other_items = [
         "name": "Золотий Пропуск (Gold Pass)",
         "desc": "Купівля золотого пропуску на ваш акаунт офіційно через магазин гри.",
         "price": "4.99",
+        "base_price": "3.50",
         "tag": "Хіт",
         "color": "orange",
         "requiredFields": ["IGG ID гравця"]
@@ -118,15 +137,16 @@ other_items = [
         "name": "Щит 24 години x5",
         "desc": "Відправка подарунком 5-ти щитів на 24 години.",
         "price": "2.50",
+        "base_price": "1.00",
         "tag": "Знижка",
         "color": "blue",
         "requiredFields": ["Нікнейм", "Гільдія", "Координати"]
     }
 ]
 
-print("\n🎁 Генерація Інших товарів...")
+print("\n🎁 Generation of Other Items...")
 for item in other_items:
-    res = requests.post(f"{BASE_URL}/other-items", json=item)
+    res = session.post(f"{BASE_URL}/other-items", json=item)
     print_status(res, item["name"])
     time.sleep(0.1)
 
@@ -141,8 +161,9 @@ promocodes = [
         "target": "all",
         "max_uses": 100,
         "min_order_amount": 0.0,
-        "expiry_date": "",
-        "specific_items": ""
+        "expiry_date": None,
+        "target_items": [],
+        "target_names": []
     },
     {
         "code": "MEGA50",
@@ -151,16 +172,16 @@ promocodes = [
         "target": "accounts",
         "max_uses": 5,
         "min_order_amount": 100.0,
-        "expiry_date": "",
-        "specific_items": ""
+        "expiry_date": None,
+        "target_items": [],
+        "target_names": []
     }
 ]
 
-print("\n🎟️ Генерація Промокодів...")
+print("\n🎟️ Generation of Promocodes...")
 for promo in promocodes:
-    res = requests.post(f"{BASE_URL}/promocodes", json=promo)
-    if res.status_code == 200 or res.status_code == 422:
-        print(f"✅ Додано: {promo['code']}")
+    res = session.post(f"{BASE_URL}/promocodes", json=promo)
+    print_status(res, promo['code'])
     time.sleep(0.1)
 
-print("\n🎉 ГОТОВО! Магазин ідеально наповнено тестовими даними.")
+print("\n🎉 ГОТОВО! База даних успішно заповнена.")
