@@ -1,0 +1,9 @@
+{
+    "is_offline": true,
+    "offline_categories": [
+        "resources",
+        "gems",
+        "other"
+    ],
+    "offline_message": "🌙 Оператор зараз офлайн. Замовлення цієї категорії будуть виконані пізніше."
+}

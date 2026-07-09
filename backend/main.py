@@ -2,16 +2,20 @@ from fastapi import FastAPI, Depends, HTTPException, Request, status, File, Uplo
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 import uvicorn
 import requests
 import json
 import bcrypt
 import os
 import uuid
+import smtplib  # 🔥 ДОДАНО ДЛЯ ПОШТИ 🔥
+from email.mime.text import MIMEText  # 🔥 ДОДАНО ДЛЯ ПОШТИ 🔥
+from email.mime.multipart import MIMEMultipart  # 🔥 ДОДАНО ДЛЯ ПОШТИ 🔥
 from PIL import Image
 from typing import Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer, String, Float, Boolean
 from datetime import datetime, timedelta
 
 from jose import JWTError, jwt
@@ -27,6 +31,8 @@ import models
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_CHAT_ID_ACCOUNTS = os.getenv("TELEGRAM_CHAT_ID_ACCOUNTS")
+
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY must be set in .env file")
@@ -34,18 +40,52 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
 FRONTEND_URL = os.getenv("VITE_FRONTEND_URL", "http://localhost:5173")
 
+
+# ==========================================
+# 🗄️ НОВІ МОДЕЛІ (АВТОБУХГАЛТЕРІЯ ТА РЕФЕРАЛКА)
+# ==========================================
+class WorkerAccountingDB(models.Base):
+    __tablename__ = "worker_accounting"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    worker_name = Column(String, unique=True, index=True)
+    current_unpaid = Column(Float, default=0.0)
+    total_paid = Column(Float, default=0.0)
+
+
+class OrderAssignmentDB(models.Base):
+    __tablename__ = "order_assignments"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, unique=True, index=True)
+    worker_name = Column(String)
+    cost_amount = Column(Float, default=0.0)
+    is_credited = Column(Boolean, default=False)
+
+
+class ReferralSettingsDB(models.Base):
+    __tablename__ = "referral_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    percent = Column(Float, default=5.0)
+    is_active = Column(Boolean, default=True)
+
+
 models.Base.metadata.create_all(bind=engine)
 
+# Налаштування лімітів запитів (захист від спаму)
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# 🔥 Створюємо папку для збереження фотографій 🔥
 os.makedirs("static/uploads", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
+# Захист заголовків
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -65,15 +105,39 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+# ==========================================
+# 🗄️ МОДЕЛІ ДАНИХ ТА КОНФІГИ (Pydantic)
+# ==========================================
+STORE_CONFIG_FILE = "store_config.json"
 
-# ==========================================
-# 🗄️ МОДЕЛІ ДАНИХ (Pydantic)
-# ==========================================
+
+def get_store_config():
+    if not os.path.exists(STORE_CONFIG_FILE):
+        return {"is_offline": False, "offline_categories": [], "offline_message": "🌙 Оператор зараз офлайн."}
+    with open(STORE_CONFIG_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_store_config(config):
+    with open(STORE_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=4)
+
+
+class StoreConfigUpdate(BaseModel):
+    is_offline: bool
+    offline_categories: List[str]
+    offline_message: str
+
+
+class WorkerPayRequest(BaseModel):
+    worker_name: str
+
+# 🔥 ВИПРАВЛЕНА МОДЕЛЬ (ref тепер має default="") 🔥
 class UserRegister(BaseModel):
     username: str
-    email: str
+    email: EmailStr
     password: str
-    ref: Optional[str] = None
+    ref: Optional[str] = ""
 
 
 class UserLogin(BaseModel):
@@ -107,12 +171,28 @@ class PasswordChangeRequest(BaseModel):
     confirm_password: str
 
 
+# 🔥 НОВІ МОДЕЛІ ДЛЯ ВІДНОВЛЕННЯ ПАРОЛЯ 🔥
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class UserBalanceUpdate(BaseModel):
+    action: str
+    amount: float = 0.0
+
+
 class OrderData(BaseModel):
     cart: list
     paymentMethod: str
     total: str
     profit: str = "0"
     user_id: Optional[int] = None
+    promo_code: Optional[str] = None
 
 
 class OrderStatusUpdate(BaseModel):
@@ -178,14 +258,26 @@ class CashbackSettingsUpdate(BaseModel):
     percent: float
     excluded_types: str
 
-# 🔥 Додано модель для прив'язки Telegram
+
+class ReferralSettingsUpdate(BaseModel):
+    percent: float
+    is_active: bool
+
+
 class TelegramLinkData(BaseModel):
     user_id: int
     chat_id: str
 
 
+class AdminNotificationSend(BaseModel):
+    user_id: Optional[int] = None
+    title: str
+    message: str
+    type: str = "info"
+
+
 # ==========================================
-# 🔐 СИСТЕМА JWT ТОКЕНІВ ТА УТИЛІТИ БЕЗПЕКИ
+# 🔐 СИСТЕМА JWT ТОКЕНІВ ТА УТИЛІТИ
 # ==========================================
 security_scheme = HTTPBearer()
 
@@ -197,16 +289,61 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=7)
     to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# 🔥 УТИЛІТИ ДЛЯ ВІДНОВЛЕННЯ ПАРОЛЯ 🔥
+def create_reset_token(email: str, password_hash: str):
+    expire = datetime.utcnow() + timedelta(minutes=30)
+    # Беремо останні 10 символів поточного хешу пароля.
+    # Якщо пароль зміниться - токен одразу стане недійсним!
+    to_encode = {"sub": email, "exp": expire, "type": "reset", "secret": password_hash[-10:]}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def send_reset_email(to_email: str, reset_link: str):
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", 465))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+
+    if not smtp_user or not smtp_password:
+        print("ПОМИЛКА: Не налаштовано SMTP_USER або SMTP_PASSWORD в .env")
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Відновлення пароля - LORDS SHOP"
+    msg["From"] = f"LORDS SHOP <{smtp_user}>"
+    msg["To"] = to_email
+
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #09090b; color: #fff; padding: 20px;">
+        <div style="max-width: 500px; margin: 0 auto; background-color: #18181b; padding: 30px; border-radius: 15px; border: 1px solid #7f1d1d;">
+          <h2 style="color: #ef4444; text-align: center;">Відновлення пароля</h2>
+          <p style="color: #d4d4d8;">Ви отримали цей лист, оскільки був запит на скидання пароля для вашого акаунта в LORDS SHOP.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="background-color: #dc2626; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; border: 1px solid #f87171;">Скинути пароль</a>
+          </div>
+          <p style="color: #71717a; font-size: 12px; text-align: center;">Посилання дійсне 30 хвилин. Якщо ви не робили цього запиту, просто проігноруйте цей лист.</p>
+        </div>
+      </body>
+    </html>
+    """
+    msg.attach(MIMEText(html_content, "html"))
+
+    try:
+        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+            server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_user, to_email, msg.as_string())
+    except Exception as e:
+        print(f"Помилка відправки листа: {e}")
 
 
 def escape_html(text: str) -> str:
@@ -220,9 +357,7 @@ def get_current_admin(request: Request, db: Session = Depends(get_db)):
         auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "): token = auth_header.split(" ")[1]
 
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен доступу відсутній")
-
+    if not token: raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен доступу відсутній")
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                           detail="Не вдалося валідувати токен")
 
@@ -234,15 +369,12 @@ def get_current_admin(request: Request, db: Session = Depends(get_db)):
     except JWTError:
         raise credentials_exception
 
-    admin_usernames_str = os.getenv("VITE_ADMIN_USERNAMES", "admin")
-    allowed_admins = [name.strip().lower() for name in admin_usernames_str.split(',')]
-
-    if username.lower() not in allowed_admins:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ви не адмін")
+    allowed_admins = [name.strip().lower() for name in os.getenv("VITE_ADMIN_USERNAMES", "admin").split(',')]
+    if username.lower() not in allowed_admins: raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                                                   detail="Ви не адмін")
 
     db_user = db.query(models.UserDB).filter(models.UserDB.id == int(user_id)).first()
-    if not db_user or db_user.is_banned:
-        raise HTTPException(status_code=403, detail="Доступ заблоковано.")
+    if not db_user or db_user.is_banned: raise HTTPException(status_code=403, detail="Доступ заблоковано.")
     return db_user
 
 
@@ -274,29 +406,41 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
 
 
 # ==========================================
-# 👤 КОРИСТУВАЧІ, АВТОРИЗАЦІЯ ТА РЕФЕРАЛИ
+# 🛑 МАРШРУТИ МАГАЗИНУ (ОФЛАЙН РЕЖИМ)
+# ==========================================
+@app.get("/api/store/status")
+def get_store_status():
+    return get_store_config()
+
+
+@app.put("/api/store/status")
+def update_store_status(config: StoreConfigUpdate, current_admin: models.UserDB = Depends(get_current_admin)):
+    save_store_config(config.dict())
+    return {"status": "success", "message": "Статус магазину оновлено!"}
+
+
+# ==========================================
+# 👤 КОРИСТУВАЧІ ТА АВТОРИЗАЦІЯ
 # ==========================================
 @app.post("/api/register")
-@limiter.limit("3/minute")
+@limiter.limit("5/minute")
 def register_user(request: Request, user: UserRegister, db: Session = Depends(get_db)):
     client_ip = request.client.host
-    if len(user.username) > 50 or len(user.password) > 100: raise HTTPException(status_code=400,
-                                                                                detail="Дані занадто довгі")
+    if len(user.username) > 50 or len(user.password) > 100:
+        raise HTTPException(status_code=400, detail="Дані занадто довгі")
 
-    banned_ip_check = db.query(models.UserDB).filter(models.UserDB.registered_ip == client_ip,
-                                                     models.UserDB.is_banned == True).first()
-    if banned_ip_check: raise HTTPException(status_code=403,
-                                            detail="Реєстрація заблокована. Ваша мережа знаходиться в чорному списку.")
+    if db.query(models.UserDB).filter(models.UserDB.registered_ip == client_ip,
+                                      models.UserDB.is_banned == True).first():
+        raise HTTPException(status_code=403, detail="Ваш IP у чорному списку. Доступ заборонено.")
 
-    existing_user = db.query(models.UserDB).filter(
-        (models.UserDB.username == user.username) | (models.UserDB.email == user.email)).first()
-    if existing_user: raise HTTPException(status_code=400, detail="Користувач з таким ніком або email вже існує")
+    if db.query(models.UserDB).filter(
+            (models.UserDB.username == user.username) | (models.UserDB.email == user.email)).first():
+        raise HTTPException(status_code=400, detail="Користувач з таким нікнеймом або email вже існує")
 
-    salt = bcrypt.gensalt()
-    hashed_pwd = bcrypt.hashpw(user.password.encode('utf-8'), salt).decode('utf-8')
+    hashed_pwd = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     referrer_name = None
-    if user.ref:
+    if user.ref and user.ref.strip() != "":
         referrer = db.query(models.UserDB).filter(models.UserDB.username.ilike(user.ref.strip())).first()
         if referrer and referrer.username.lower() != user.username.lower():
             referrer_name = referrer.username
@@ -306,11 +450,15 @@ def register_user(request: Request, user: UserRegister, db: Session = Depends(ge
                              registered_ip=client_ip, referred_by=referrer_name)
     db.add(new_user)
     db.commit()
+
+    db.add(models.NotificationDB(user_id=new_user.id, title="Ласкаво просимо!",
+                                 message="Дякуємо за реєстрацію на LORDS SHOP. Приємних покупок!", type="info"))
+    db.commit()
     return {"status": "success", "message": "Реєстрація успішна!"}
 
 
 @app.post("/api/login")
-@limiter.limit("5/minute")
+@limiter.limit("10/minute")
 def login_user(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     client_ip = request.client.host
     db_user = db.query(models.UserDB).filter(models.UserDB.username == user.username).first()
@@ -318,12 +466,12 @@ def login_user(request: Request, user: UserLogin, db: Session = Depends(get_db))
     if not db_user or not bcrypt.checkpw(user.password.encode('utf-8'), db_user.password_hash.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Невірний логін або пароль")
 
-    if db_user.is_banned: raise HTTPException(status_code=403,
-                                              detail=f"Ваш акаунт заблоковано! Причина: {db_user.ban_reason or 'Порушення правил магазину'}")
-
+    if db_user.is_banned:
+        raise HTTPException(status_code=403,
+                            detail=f"Ваш акаунт заблоковано! Причина: {db_user.ban_reason or 'Порушення правил'}")
     if db.query(models.UserDB).filter(models.UserDB.registered_ip == client_ip,
                                       models.UserDB.is_banned == True).first():
-        raise HTTPException(status_code=403, detail="Вхід заблоковано. Ваш IP знаходиться у чорному списку.")
+        raise HTTPException(status_code=403, detail="Ваш IP у чорному списку.")
 
     db_user.registered_ip = client_ip
     db.commit()
@@ -341,6 +489,53 @@ def login_user(request: Request, user: UserLogin, db: Session = Depends(get_db))
     return response
 
 
+@app.post("/api/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(models.UserDB).filter(models.UserDB.email == data.email).first()
+
+    if user:
+        # Передаємо хеш старого пароля для захисту
+        token = create_reset_token(user.email, user.password_hash)
+        reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
+        send_reset_email(user.email, reset_link)
+
+    return {"status": "success", "message": "Якщо email знайдено, ми надіслали інструкції."}
+
+
+@app.post("/api/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "reset":
+            raise HTTPException(status_code=400, detail="Невалідний токен")
+
+        email = payload.get("sub")
+        secret = payload.get("secret")
+
+        user = db.query(models.UserDB).filter(models.UserDB.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+        # 🔥 ПЕРЕВІРКА НА ОДНОРАЗОВІСТЬ 🔥
+        # Якщо пароль вже було змінено, хеш в базі не співпаде зі "secret" з токена
+        if user.password_hash[-10:] != secret:
+            raise HTTPException(status_code=400, detail="Це посилання вже було використане!")
+
+        if len(data.new_password) < 8:
+            raise HTTPException(status_code=400, detail="Пароль занадто короткий")
+
+        # Оновлюємо пароль
+        hashed_pwd = bcrypt.hashpw(data.new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        user.password_hash = hashed_pwd
+        db.commit()
+
+        return {"status": "success", "message": "Пароль успішно змінено!"}
+
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Посилання застаріло або недійсне")
+
 @app.post("/api/logout")
 def logout_user():
     response = JSONResponse({"status": "success", "message": "Ви успішно вийшли з акаунта"})
@@ -354,12 +549,9 @@ def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get
     try:
         payload = jwt.decode(request.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
-        if payload.get("type") != "refresh" or not user_id: raise HTTPException(status_code=401,
-                                                                                detail="Невалідний refresh token")
-
+        if payload.get("type") != "refresh" or not user_id: raise HTTPException(status_code=401)
         db_user = db.query(models.UserDB).filter(models.UserDB.id == int(user_id)).first()
-        if not db_user or db_user.is_banned: raise HTTPException(status_code=401,
-                                                                 detail="Користувача не знайдено або обліковий запис заблоковано")
+        if not db_user or db_user.is_banned: raise HTTPException(status_code=401)
 
         new_access_token = create_access_token(data={"sub": str(db_user.id), "username": db_user.username},
                                                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
@@ -378,24 +570,38 @@ def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get
 @app.get("/api/users/{user_id}")
 def get_user_data(user_id: int, db: Session = Depends(get_db)):
     user = db.query(models.UserDB).filter(models.UserDB.id == user_id).first()
-    if user: return {"balance": user.balance, "referral_count": user.referral_count,
-                     "referral_earnings": user.referral_earnings}
+    if user:
+        return {"balance": user.balance, "referral_count": user.referral_count,
+                "referral_earnings": user.referral_earnings}
     return {"error": "Користувача не знайдено"}
+
+
+@app.get("/api/users/{user_id}/referrals")
+def get_user_referrals(user_id: int, db: Session = Depends(get_db),
+                       current_user: models.UserDB = Depends(get_current_user)):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Доступ заборонено")
+    referrals = db.query(models.UserDB).filter(models.UserDB.referred_by == current_user.username).all()
+    ref_list = [{"id": r.id, "username": r.username} for r in referrals]
+    return {
+        "status": "success",
+        "referral_count": current_user.referral_count,
+        "referral_earnings": current_user.referral_earnings,
+        "referrals": ref_list
+    }
 
 
 @app.put("/api/users/{user_id}/update")
 def update_user_profile(user_id: int, data: UserProfileUpdate, current_user: models.UserDB = Depends(get_current_user),
                         db: Session = Depends(get_db)):
-    if current_user.id != user_id: raise HTTPException(status_code=403, detail="Ви не можете редагувати чужий профіль")
+    if current_user.id != user_id: raise HTTPException(status_code=403)
     user = db.query(models.UserDB).filter(models.UserDB.id == user_id).first()
-
     if data.username: user.username = data.username
     if data.new_password: user.password_hash = bcrypt.hashpw(data.new_password.encode('utf-8'),
                                                              bcrypt.gensalt()).decode('utf-8')
     if data.telegram: user.telegram_chat_id = data.telegram
-
     db.commit()
-    return {"status": "success", "message": "Профіль оновлено"}
+    return {"status": "success"}
 
 
 @app.get("/api/users/{user_id}/notifications")
@@ -413,42 +619,114 @@ def read_user_notifications(user_id: int, db: Session = Depends(get_db)):
 
 
 # ==========================================
-# 👑 АДМІН-МАРШРУТИ: МОНІТОРІНГ ТА БАНИ
+# 👑 АДМІН-МАРШРУТИ ТА РОЗСИЛКА СПОВІЩЕНЬ
 # ==========================================
 @app.get("/api/admin/users")
 def admin_get_all_users(db: Session = Depends(get_db), current_admin: models.UserDB = Depends(get_current_admin)):
     users = db.query(models.UserDB).order_by(models.UserDB.id.desc()).all()
-    result = []
-    for u in users:
-        result.append(
-            {"id": u.id, "username": u.username, "email": u.email, "balance": u.balance, "is_banned": u.is_banned,
+    return [{"id": u.id, "username": u.username, "email": u.email, "balance": u.balance, "is_banned": u.is_banned,
              "ban_reason": u.ban_reason, "ip": u.registered_ip or "Невідомо", "referred_by": u.referred_by or "Ніхто",
-             "referral_count": u.referral_count, "referral_earnings": u.referral_earnings})
-    return result
+             "referral_count": u.referral_count, "referral_earnings": u.referral_earnings} for u in users]
+
+
+@app.post("/api/admin/users/{user_id}/balance")
+def admin_update_user_balance(user_id: int, data: UserBalanceUpdate, db: Session = Depends(get_db),
+                              current_admin: models.UserDB = Depends(get_current_admin)):
+    user = db.query(models.UserDB).filter(models.UserDB.id == user_id).first()
+    if not user: raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+    old_balance = user.balance
+    if data.action == "add":
+        user.balance += data.amount
+    elif data.action == "set":
+        user.balance = data.amount
+    elif data.action == "reset":
+        user.balance = 0.0
+    else:
+        raise HTTPException(status_code=400, detail="Невідома дія")
+
+    db.commit()
+    msg = f"Ваш баланс було оновлено адміністратором. Поточний баланс: ${user.balance:.2f}"
+    db.add(models.NotificationDB(user_id=user.id, title="💳 Оновлення балансу", message=msg, type="info"))
+    db.commit()
+
+    return {"status": "success", "new_balance": user.balance, "old_balance": old_balance}
 
 
 @app.post("/api/admin/users/{user_id}/ban")
 def admin_ban_user(user_id: int, data: BanActionRequest, db: Session = Depends(get_db),
                    current_admin: models.UserDB = Depends(get_current_admin)):
     user = db.query(models.UserDB).filter(models.UserDB.id == user_id).first()
-    if not user: raise HTTPException(status_code=404, detail="Користувача не знайдено")
-    user.is_banned, user.ban_reason = True, data.reason
+    if not user: raise HTTPException(status_code=404)
+    if user.id == current_admin.id: raise HTTPException(status_code=400, detail="Ви не можете забанити самого себе.")
+
+    user.is_banned = True
+    user.ban_reason = data.reason
     db.commit()
-    return {"status": "success", "message": f"Гравця {user.username} успішно забанено."}
+    return {"status": "success"}
 
 
 @app.post("/api/admin/users/{user_id}/unban")
 def admin_unban_user(user_id: int, db: Session = Depends(get_db),
                      current_admin: models.UserDB = Depends(get_current_admin)):
     user = db.query(models.UserDB).filter(models.UserDB.id == user_id).first()
-    if not user: raise HTTPException(status_code=404, detail="Користувача не знайдено")
-    user.is_banned, user.ban_reason = False, None
+    user.is_banned = False
+    user.ban_reason = None
     db.commit()
-    return {"status": "success", "message": f"Гравця {user.username} успішно розбанено."}
+    return {"status": "success"}
+
+
+@app.post("/api/admin/notifications/send")
+def admin_send_notification(data: AdminNotificationSend, db: Session = Depends(get_db),
+                            current_admin: models.UserDB = Depends(get_current_admin)):
+    if data.user_id:
+        user = db.query(models.UserDB).filter(models.UserDB.id == data.user_id).first()
+        if not user: raise HTTPException(status_code=404)
+        db.add(models.NotificationDB(user_id=user.id, title=data.title, message=data.message, type=data.type))
+        if user.telegram_chat_id and TELEGRAM_BOT_TOKEN:
+            try:
+                requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                              json={"chat_id": user.telegram_chat_id,
+                                    "text": f"🔔 <b>{data.title}</b>\n\n{data.message}", "parse_mode": "HTML"})
+            except:
+                pass
+    else:
+        users = db.query(models.UserDB).all()
+        for u in users:
+            db.add(models.NotificationDB(user_id=u.id, title=data.title, message=data.message, type=data.type))
+            if u.telegram_chat_id and TELEGRAM_BOT_TOKEN:
+                try:
+                    requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                                  json={"chat_id": u.telegram_chat_id,
+                                        "text": f"📢 <b>{data.title}</b>\n\n{data.message}", "parse_mode": "HTML"})
+                except:
+                    pass
+    db.commit()
+    return {"status": "success"}
+
+
+# 🔥 МАРШРУТИ ДЛЯ АДМІН-БУХГАЛТЕРІЇ 🔥
+@app.get("/api/admin/workers/accounting")
+def get_workers_accounting(db: Session = Depends(get_db), current_admin: models.UserDB = Depends(get_current_admin)):
+    workers = db.query(WorkerAccountingDB).all()
+    return [{"worker_name": w.worker_name, "current_unpaid": w.current_unpaid, "total_paid": w.total_paid} for w in
+            workers]
+
+
+@app.post("/api/admin/workers/pay_all")
+def pay_worker_all(data: WorkerPayRequest, db: Session = Depends(get_db),
+                   current_admin: models.UserDB = Depends(get_current_admin)):
+    worker_acc = db.query(WorkerAccountingDB).filter(WorkerAccountingDB.worker_name == data.worker_name).first()
+    if not worker_acc: raise HTTPException(status_code=404, detail="Адміна не знайдено")
+
+    worker_acc.total_paid += worker_acc.current_unpaid
+    worker_acc.current_unpaid = 0.0
+    db.commit()
+    return {"status": "success", "message": f"Виплату для {data.worker_name} успішно зафіксовано!"}
 
 
 # ==========================================
-# 🔥 ГЛОБАЛЬНА ЛОГІКА СТАТУСІВ 🔥
+# 🔥 ГЛОБАЛЬНА ЛОГІКА СТАТУСІВ ТА РЕФЕРАЛІВ 🔥
 # ==========================================
 def _process_order_status_change(db: Session, order_id: int, new_status: str, confirmed_by_user=False):
     db_order = db.query(models.OrderDB).filter(models.OrderDB.id == order_id).first()
@@ -483,15 +761,26 @@ def _process_order_status_change(db: Session, order_id: int, new_status: str, co
             except:
                 pass
 
-    # Сповіщення адміну, якщо клієнт сам підтвердив замовлення
     if confirmed_by_user and new_status == "completed":
-        if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+        if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID_ACCOUNTS:
             try:
-                admin_msg = f"✅ <b>Клієнт підтвердив отримання!</b>\nЗамовлення #{db_order.id} успішно закрито, кешбек нараховано."
                 requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                              json={"chat_id": TELEGRAM_CHAT_ID, "text": admin_msg, "parse_mode": "HTML"})
+                              json={"chat_id": TELEGRAM_CHAT_ID_ACCOUNTS,
+                                    "text": f"✅ <b>Клієнт підтвердив отримання!</b>\nЗамовлення #{db_order.id} успішно закрито.",
+                                    "parse_mode": "HTML"})
             except:
                 pass
+
+    if new_status == "completed" and old_status != "completed":
+        assignment = db.query(OrderAssignmentDB).filter(OrderAssignmentDB.order_id == order_id).first()
+        if assignment and not assignment.is_credited:
+            worker_acc = db.query(WorkerAccountingDB).filter(
+                WorkerAccountingDB.worker_name == assignment.worker_name).first()
+            if not worker_acc:
+                worker_acc = WorkerAccountingDB(worker_name=assignment.worker_name, current_unpaid=0.0, total_paid=0.0)
+                db.add(worker_acc)
+            worker_acc.current_unpaid += assignment.cost_amount
+            assignment.is_credited = True
 
     if new_status == "cancelled" and old_status != "cancelled":
         if db_order.payment_method == "balance" and db_order.user_id:
@@ -504,16 +793,51 @@ def _process_order_status_change(db: Session, order_id: int, new_status: str, co
             is_topup = any(item.get("type") == "topup" for item in cart_items)
             buyer = db.query(models.UserDB).filter(models.UserDB.id == db_order.user_id).first()
 
-            if buyer and buyer.referred_by and not is_topup and db_order.payment_method != "balance":
+            used_promo_code = next(
+                (item.get("promo_code") for item in cart_items if isinstance(item, dict) and item.get("_meta_promo")),
+                None)
+
+            is_referral_allowed = True
+            is_cashback_allowed = True
+
+            if used_promo_code:
+                promo_model = db.query(models.PromoCodeDB).filter(models.PromoCodeDB.code == used_promo_code).first()
+                if promo_model and promo_model.target == "guild":
+                    is_referral_allowed = False
+                    is_cashback_allowed = False
+
+            ref_settings = db.query(ReferralSettingsDB).first()
+            ref_percent = ref_settings.percent if ref_settings else 5.0
+            ref_active = ref_settings.is_active if ref_settings else True
+
+            if buyer and buyer.referred_by and not is_topup and db_order.payment_method != "balance" and ref_active and is_referral_allowed:
                 referrer = db.query(models.UserDB).filter(models.UserDB.username == buyer.referred_by).first()
                 if referrer:
-                    ref_bonus = float(db_order.total) * 0.05
-                    referrer.balance += ref_bonus
-                    referrer.referral_earnings += ref_bonus
+                    ref_bonus = float(db_order.total) * (ref_percent / 100.0)
+                    if ref_bonus > 0:
+                        referrer.balance += ref_bonus
+                        referrer.referral_earnings += ref_bonus
+                        db.add(models.NotificationDB(user_id=referrer.id, title="Реферальний бонус!",
+                                                     message=f"Вам нараховано ${ref_bonus:.2f} за покупку вашого друга.",
+                                                     type="success"))
 
-            if not is_topup and db_order.payment_method != "balance":
+            if not is_topup and db_order.payment_method != "balance" and is_cashback_allowed:
                 settings = db.query(models.CashbackSettingsDB).first()
-                if buyer: buyer.balance += float(db_order.total) * ((settings.percent if settings else 0.0) / 100)
+                if buyer:
+                    cb = float(db_order.total) * ((settings.percent if settings else 0.0) / 100)
+                    buyer.balance += cb
+                    if cb > 0:
+                        cb_msg = f"Вам нараховано ${cb:.2f} кешбеку за замовлення #{db_order.id}."
+                        db.add(models.NotificationDB(user_id=buyer.id, title="Кешбек нараховано!", message=cb_msg,
+                                                     type="success"))
+                        if buyer.telegram_chat_id:
+                            try:
+                                requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                                              json={"chat_id": buyer.telegram_chat_id,
+                                                    "text": f"💰 <b>Кешбек нараховано!</b>\n\n{cb_msg}",
+                                                    "parse_mode": "HTML"})
+                            except:
+                                pass
         except Exception:
             pass
 
@@ -531,25 +855,17 @@ def update_order_status(order_id: int, status_data: OrderStatusUpdate, db: Sessi
     return {"status": "success"}
 
 
-# 🔥 НОВИЙ МАРШРУТ ДЛЯ ПІДТВЕРДЖЕННЯ ЗАМОВЛЕННЯ КЛІЄНТОМ 🔥
 @app.post("/api/orders/{order_id}/confirm")
 def confirm_order_delivery(order_id: int, db: Session = Depends(get_db),
                            current_user: models.UserDB = Depends(get_current_user)):
     db_order = db.query(models.OrderDB).filter(models.OrderDB.id == order_id).first()
-    if not db_order:
-        raise HTTPException(status_code=404, detail="Замовлення не знайдено")
-
-    if db_order.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Це не ваше замовлення")
-
-    if db_order.status != "delivered":
-        raise HTTPException(status_code=400, detail="Замовлення ще не доставлено або вже закрито")
+    if not db_order: raise HTTPException(status_code=404)
+    if db_order.user_id != current_user.id: raise HTTPException(status_code=403)
+    if db_order.status != "delivered": raise HTTPException(status_code=400)
 
     success, msg = _process_order_status_change(db, order_id, "completed", confirmed_by_user=True)
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-
-    return {"status": "success", "message": "Замовлення успішно підтверджено! Кешбек нараховано."}
+    if not success: raise HTTPException(status_code=400)
+    return {"status": "success"}
 
 
 @app.get("/api/orders")
@@ -593,12 +909,20 @@ def format_item_details(item):
     return msg
 
 
-def generate_full_order_text(db, db_order, status="new"):
+def generate_filtered_order_text(db, db_order, status="new", filter_type="general"):
     try:
         cart = json.loads(db_order.cart_data)
     except:
         cart = []
-    is_topup = any(item.get("type") == "topup" for item in cart)
+
+    if filter_type == "accounts":
+        filtered_cart = [item for item in cart if item.get("type") == "account"]
+    else:
+        filtered_cart = [item for item in cart if
+                         item.get("type") != "account" and item.get("type") != "topup" and not item.get("_meta_promo")]
+
+    if not filtered_cart:
+        return None
 
     user_model = db.query(models.UserDB).filter(
         models.UserDB.id == db_order.user_id).first() if db_order.user_id else None
@@ -609,29 +933,72 @@ def generate_full_order_text(db, db_order, status="new"):
     elif status == "processing":
         msg = f"🟡 <b>ЗАМОВЛЕННЯ #{db_order.id} В РОБОТІ</b> 🟡\n\n"
 
-    msg += f"💳 <b>Оплата:</b> {'З БАЛАНСУ' if db_order.payment_method == 'balance' else escape_html(db_order.payment_method).upper()}\n💰 <b>Сума:</b> ${db_order.total}\n"
-    if not is_topup:
-        msg += f"📈 <b>Чистий прибуток:</b> ${db_order.profit}\n"
-    else:
-        msg += f"⚡️ <b>Тип:</b> ПОПОВНЕННЯ БАЛАНСУ\n"
-    msg += f"👤 <b>Покупець:</b> {buyer_name}\n\n🛒 <b>Кошик:</b>\n"
+    msg += f"💳 <b>Оплата:</b> {'З БАЛАНСУ' if db_order.payment_method == 'balance' else escape_html(db_order.payment_method).upper()}\n"
+    msg += f"👤 <b>Покупець:</b> {buyer_name}\n\n🛒 <b>Частина кошика для обробки:</b>\n"
 
-    for index, item in enumerate(cart, 1):
+    for index, item in enumerate(filtered_cart, 1):
         product_name = escape_html(item.get("product", {}).get("name") or item.get("product", {}).get("title"))
-        msg += f"<b>{index}. {product_name}</b> | ${escape_html(str(item.get('price')))}\n"
+        msg += f"<b>{index}. {product_name}</b>\n"
         msg += format_item_details(item)
         msg += "\n"
     return msg
 
 
-def generate_worker_message_text(db_order):
+def generate_full_order_text(db, db_order, status="new", hide_finance=False):
     try:
         cart = json.loads(db_order.cart_data)
     except:
         cart = []
 
-    msg_worker = f"⬇️ <i>Для пересилання виконавцю</i> ⬇️\n\n📦 <b>ДЕТАЛІ ДЛЯ ДОСТАВКИ (Замовлення #{db_order.id})</b>\n\n🛒 <b>Товари:</b>\n"
-    for index, item in enumerate(cart, 1):
+    visible_cart = [i for i in cart if not i.get("_meta_promo")]
+    is_topup = any(item.get("type") == "topup" for item in visible_cart)
+
+    user_model = db.query(models.UserDB).filter(
+        models.UserDB.id == db_order.user_id).first() if db_order.user_id else None
+    buyer_name = escape_html(user_model.username) if user_model else 'Гість'
+
+    if status == "new":
+        msg = f"🔥 <b>НОВЕ ЗАМОВЛЕННЯ #{db_order.id}</b> 🔥\n\n"
+    elif status == "processing":
+        msg = f"🟡 <b>ЗАМОВЛЕННЯ #{db_order.id} В РОБОТІ</b> 🟡\n\n"
+
+    if not hide_finance:
+        msg += f"💳 <b>Оплата:</b> {'З БАЛАНСУ' if db_order.payment_method == 'balance' else escape_html(db_order.payment_method).upper()}\n💰 <b>Сума:</b> ${db_order.total}\n"
+        if not is_topup:
+            msg += f"📈 <b>Чистий прибуток:</b> ${db_order.profit}\n"
+        else:
+            msg += f"⚡️ <b>Тип:</b> ПОПОВНЕННЯ БАЛАНСУ\n"
+
+    msg += f"👤 <b>Покупець:</b> {buyer_name}\n\n🛒 <b>Кошик:</b>\n"
+
+    for index, item in enumerate(visible_cart, 1):
+        product_name = escape_html(item.get("product", {}).get("name") or item.get("product", {}).get("title"))
+        if hide_finance:
+            msg += f"<b>{index}. {product_name}</b>\n"
+        else:
+            msg += f"<b>{index}. {product_name}</b> | ${escape_html(str(item.get('price')))}\n"
+        msg += format_item_details(item)
+        msg += "\n"
+    return msg
+
+
+def generate_worker_message_text(db_order, worker_name=""):
+    try:
+        cart = json.loads(db_order.cart_data)
+    except:
+        cart = []
+
+    filtered_cart = [item for item in cart if
+                     item.get("type") != "account" and item.get("type") != "topup" and not item.get("_meta_promo")]
+
+    msg_worker = f"📦 <b>ДЕТАЛІ ЗАМОВЛЕННЯ #{db_order.id}</b>\n"
+    if worker_name:
+        msg_worker += f"🧑‍💻 <b>Виконує:</b> {worker_name}\n\n"
+    else:
+        msg_worker += "\n"
+
+    msg_worker += f"🛒 <b>Товари:</b>\n"
+    for index, item in enumerate(filtered_cart, 1):
         product_name = escape_html(item.get("product", {}).get("name") or item.get("product", {}).get("title"))
         msg_worker += f"<b>{index}. {product_name}</b>\n"
         msg_worker += format_item_details(item)
@@ -639,20 +1006,25 @@ def generate_worker_message_text(db_order):
     return msg_worker
 
 
-def generate_short_status_message(db_order, status):
+def generate_short_status_message(db_order, status, worker_name=""):
     try:
         cart = json.loads(db_order.cart_data)
     except:
         cart = []
 
+    visible_cart = [i for i in cart if not i.get("_meta_promo")]
+
     if status == "completed":
-        msg = f"✅ Замовлення #{db_order.id} <b>ВИКОНАНО</b>\n🛒 <b>Доставлено:</b>\n"
+        msg = f"✅ Замовлення #{db_order.id} <b>ВИКОНАНО</b>\n"
+        if worker_name: msg += f"🧑‍💻 <b>Виконав:</b> {worker_name}\n"
+        msg += "🛒 <b>Доставлено:</b>\n"
     elif status == "delivered":
         msg = f"🚚 Замовлення #{db_order.id} <b>ДОСТАВЛЕНО</b>\nОчікуємо підтвердження клієнта на сайті.\n"
+        if worker_name: msg += f"🧑‍💻 <b>Доставив:</b> {worker_name}\n"
     else:
         msg = f"❌ Замовлення #{db_order.id} <b>СКАСОВАНО</b> {'(кошти повернуто)' if db_order.payment_method == 'balance' else ''}\n🛒 <b>Скасовано:</b>\n"
 
-    for index, item in enumerate(cart, 1):
+    for index, item in enumerate(visible_cart, 1):
         product_name = escape_html(item.get("product", {}).get("name") or item.get("product", {}).get("title"))
         msg += f" 🔸 {product_name}\n"
     return msg
@@ -679,8 +1051,12 @@ async def checkout(request: Request, order: OrderData, db: Session = Depends(get
             is_topup = True
             topup_amount += float(item.get("coins", 0))
 
+    cart_to_save = order.cart.copy()
+    if order.promo_code:
+        cart_to_save.append({"_meta_promo": True, "promo_code": order.promo_code.upper()})
+
     new_order = models.OrderDB(
-        user_id=order.user_id, cart_data=json.dumps(order.cart), payment_method=escape_html(order.paymentMethod),
+        user_id=order.user_id, cart_data=json.dumps(cart_to_save), payment_method=escape_html(order.paymentMethod),
         total=order.total, profit=order.profit, status="completed" if is_topup else "new"
     )
     db.add(new_order)
@@ -692,20 +1068,47 @@ async def checkout(request: Request, order: OrderData, db: Session = Depends(get
     db.commit()
     db.refresh(new_order)
 
+    if order.user_id and not is_topup:
+        db.add(models.NotificationDB(user_id=order.user_id, title="Замовлення оформлено!",
+                                     message=f"Ваше замовлення #{new_order.id} успішно прийнято. Очікуйте на доставку.",
+                                     type="success"))
+        db.commit()
+        buyer = db.query(models.UserDB).filter(models.UserDB.id == order.user_id).first()
+        if buyer and buyer.telegram_chat_id and TELEGRAM_BOT_TOKEN:
+            try:
+                requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                              json={"chat_id": buyer.telegram_chat_id,
+                                    "text": f"✅ <b>Замовлення #{new_order.id} оформлено!</b>\nМи вже почали його обробляти.",
+                                    "parse_mode": "HTML"})
+            except:
+                pass
+
     if TELEGRAM_BOT_TOKEN:
         if is_topup:
             short_msg = generate_short_status_message(new_order, "completed")
             requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                          json={"chat_id": TELEGRAM_CHAT_ID, "text": short_msg, "parse_mode": "HTML"})
+                          json={"chat_id": TELEGRAM_CHAT_ID_ACCOUNTS, "text": short_msg, "parse_mode": "HTML"})
         else:
-            msg_admin = generate_full_order_text(db, new_order, "new")
+            has_accounts = any(item.get("type") == "account" for item in order.cart)
+            has_general = any(item.get("type") != "account" and item.get("type") != "topup" for item in order.cart)
+
             keyboard = {"inline_keyboard": [
                 [{"text": "🟡 В роботу", "callback_data": f"admin_processing_{new_order.id}"},
                  {"text": "🔴 Скасувати", "callback_data": f"admin_cancelled_{new_order.id}"}]
             ]}
-            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                          json={"chat_id": TELEGRAM_CHAT_ID, "text": msg_admin, "parse_mode": "HTML",
-                                "reply_markup": keyboard})
+
+            if TELEGRAM_CHAT_ID_ACCOUNTS:
+                msg_owner = generate_full_order_text(db, new_order, "new", hide_finance=False)
+                requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                              json={"chat_id": TELEGRAM_CHAT_ID_ACCOUNTS, "text": msg_owner, "parse_mode": "HTML",
+                                    "reply_markup": keyboard})
+
+            if has_general and TELEGRAM_CHAT_ID:
+                msg_admin = generate_filtered_order_text(db, new_order, "new", "general")
+                if msg_admin:
+                    requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                                  json={"chat_id": TELEGRAM_CHAT_ID, "text": msg_admin, "parse_mode": "HTML",
+                                        "reply_markup": keyboard})
 
     return {"status": "success", "order_id": new_order.id}
 
@@ -720,9 +1123,33 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             message_id = callback["message"]["message_id"]
             action_data = callback["data"]
 
+            clicker_name = callback["from"].get("username", callback["from"].get("first_name", "Адмін"))
+            worker_mention = f"@{clicker_name}" if callback["from"].get("username") else clicker_name
+
             if action_data.startswith("admin_") or action_data.startswith("worker_"):
                 parts = action_data.split("_")
                 prefix, new_status, order_id = parts[0], parts[1], int(parts[2])
+
+                if new_status == "processing" and prefix == "admin":
+                    db_order = db.query(models.OrderDB).filter(models.OrderDB.id == order_id).first()
+                    if db_order:
+                        try:
+                            cart = json.loads(db_order.cart_data)
+                            cost_sum = 0.0
+                            for item in cart:
+                                if item.get("type") != "account" and not item.get("_meta_promo"):
+                                    bp = item.get("product", {}).get("base_price", item.get("base_price", 0))
+                                    cost_sum += float(bp)
+                        except:
+                            cost_sum = 0.0
+
+                        existing_assign = db.query(OrderAssignmentDB).filter(
+                            OrderAssignmentDB.order_id == order_id).first()
+                        if not existing_assign:
+                            db.add(
+                                OrderAssignmentDB(order_id=order_id, worker_name=worker_mention, cost_amount=cost_sum,
+                                                  is_credited=False))
+                            db.commit()
 
                 success, _ = _process_order_status_change(db, order_id, new_status)
 
@@ -732,32 +1159,43 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
                     if success:
                         db_order = db.query(models.OrderDB).filter(models.OrderDB.id == order_id).first()
-                        requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/deleteMessage",
-                                      json={"chat_id": chat_id, "message_id": message_id})
 
                         if new_status == "processing" and prefix == "admin":
-                            full_msg = generate_full_order_text(db, db_order, "processing")
-                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                                          json={"chat_id": chat_id, "text": full_msg, "parse_mode": "HTML"})
+                            is_owner_chat = str(chat_id) == str(TELEGRAM_CHAT_ID_ACCOUNTS)
+                            worker_msg = generate_worker_message_text(db_order, worker_mention)
 
-                            worker_msg = generate_worker_message_text(db_order)
+                            full_msg = f"🟡 <b>ЗАМОВЛЕННЯ #{order_id} В РОБОТІ</b>\n🧑‍💻 <b>Взяв:</b> {worker_mention}\n\n"
+
+                            if is_owner_chat:
+                                full_msg += generate_full_order_text(db, db_order, "processing", hide_finance=False)
+                            else:
+                                filtered = generate_filtered_order_text(db, db_order, "processing", "general")
+                                full_msg += filtered if filtered else worker_msg
+
                             worker_kb = {"inline_keyboard": [
                                 [{"text": "🚚 Доставлено", "callback_data": f"worker_delivered_{order_id}"},
                                  {"text": "🔴 Скасувати", "callback_data": f"worker_cancelled_{order_id}"}]
                             ]}
-                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                                          json={"chat_id": chat_id, "text": worker_msg, "parse_mode": "HTML",
-                                                "reply_markup": worker_kb})
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText", json={
+                                "chat_id": chat_id, "message_id": message_id, "text": full_msg, "parse_mode": "HTML",
+                                "reply_markup": worker_kb
+                            })
 
                         elif new_status == "delivered":
-                            short_msg = generate_short_status_message(db_order, "delivered")
-                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                                          json={"chat_id": chat_id, "text": short_msg, "parse_mode": "HTML"})
+                            assign = db.query(OrderAssignmentDB).filter(OrderAssignmentDB.order_id == order_id).first()
+                            w_name = assign.worker_name if assign else worker_mention
+                            short_msg = generate_short_status_message(db_order, "delivered", w_name)
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText",
+                                          json={"chat_id": chat_id, "message_id": message_id, "text": short_msg,
+                                                "parse_mode": "HTML"})
 
                         elif new_status == "cancelled":
-                            short_msg = generate_short_status_message(db_order, "cancelled")
-                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                                          json={"chat_id": chat_id, "text": short_msg, "parse_mode": "HTML"})
+                            assign = db.query(OrderAssignmentDB).filter(OrderAssignmentDB.order_id == order_id).first()
+                            w_name = assign.worker_name if assign else worker_mention
+                            short_msg = generate_short_status_message(db_order, "cancelled", w_name)
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText",
+                                          json={"chat_id": chat_id, "message_id": message_id, "text": short_msg,
+                                                "parse_mode": "HTML"})
         return {"status": "ok"}
     except Exception:
         return {"status": "error"}
@@ -769,11 +1207,20 @@ def link_telegram(data: TelegramLinkData, db: Session = Depends(get_db)):
     if not user: raise HTTPException(status_code=404)
     user.telegram_chat_id = data.chat_id
     db.commit()
+
+    if TELEGRAM_BOT_TOKEN:
+        try:
+            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                          json={"chat_id": data.chat_id,
+                                "text": f"✅ Ваш акаунт <b>{user.username}</b> успішно прив'язано до Telegram!\nТепер ви будете отримувати тут сповіщення про замовлення та кешбек.",
+                                "parse_mode": "HTML"})
+        except:
+            pass
     return {"status": "success"}
 
 
 # ==========================================
-# 💰 ІНШІ МАРШРУТИ (НАЛАШТУВАННЯ, ТОВАРИ ТОЩО)
+# 💰 ІНШІ МАРШРУТИ (НАЛАШТУВАННЯ)
 # ==========================================
 @app.get("/api/cashback/settings")
 def get_cashback_settings(db: Session = Depends(get_db)):
@@ -803,6 +1250,30 @@ def get_public_cashback_settings(db: Session = Depends(get_db)):
     settings = db.query(models.CashbackSettingsDB).first()
     return {"percent": settings.percent, "excluded_types": settings.excluded_types} if settings else {"percent": 5.0,
                                                                                                       "excluded_types": "account"}
+
+
+@app.get("/api/referral/settings")
+def get_referral_settings(db: Session = Depends(get_db), current_admin: models.UserDB = Depends(get_current_admin)):
+    settings = db.query(ReferralSettingsDB).first()
+    if not settings:
+        settings = ReferralSettingsDB(percent=5.0, is_active=True)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    return settings
+
+
+@app.put("/api/referral/settings")
+def update_referral_settings(data: ReferralSettingsUpdate, db: Session = Depends(get_db),
+                             current_admin: models.UserDB = Depends(get_current_admin)):
+    settings = db.query(ReferralSettingsDB).first()
+    if not settings:
+        db.add(ReferralSettingsDB(percent=data.percent, is_active=data.is_active))
+    else:
+        settings.percent = data.percent
+        settings.is_active = data.is_active
+    db.commit()
+    return {"status": "success"}
 
 
 @app.get("/api/other-items")
@@ -894,56 +1365,33 @@ def get_accounts(db: Session = Depends(get_db)):
             stats_dict = json.loads(acc.stats) if acc.stats else {}
         except:
             stats_dict = {}
-
-        result.append({
-            "id": acc.id,
-            "title": acc.title,
-            "shortDesc": acc.shortDesc,
-            "price": acc.price,
-            "base_price": acc.base_price,
-            "tags": acc.tags.split(",") if acc.tags else [],
-            "status": acc.status,
-            "bind": acc.bind,
-            "images": images_list,
-            "stats": stats_dict
-        })
+        result.append({"id": acc.id, "title": acc.title, "shortDesc": acc.shortDesc, "price": acc.price,
+                       "base_price": acc.base_price, "tags": acc.tags.split(",") if acc.tags else [],
+                       "status": acc.status, "bind": acc.bind, "images": images_list, "stats": stats_dict})
     return result
 
 
 @app.post("/api/accounts")
 async def create_account(
-        title: str = Form(...),
-        shortDesc: str = Form(...),
-        price: str = Form(...),
-        base_price: str = Form("0"),
-        tags: str = Form(...),
-        bind: str = Form(...),
-        stats: str = Form("{}"),
-        images: List[UploadFile] = File(...),
-        db: Session = Depends(get_db),
-        current_admin: models.UserDB = Depends(get_current_admin)
+        title: str = Form(...), shortDesc: str = Form(...), price: str = Form(...), base_price: str = Form("0"),
+        tags: str = Form(...), bind: str = Form(...), stats: str = Form("{}"), images: List[UploadFile] = File(...),
+        db: Session = Depends(get_db), current_admin: models.UserDB = Depends(get_current_admin)
 ):
     image_urls = []
     for img in images:
         try:
             image = Image.open(img.file)
-            if image.mode in ("RGBA", "P"):
-                image = image.convert("RGB")
-
+            if image.mode in ("RGBA", "P"): image = image.convert("RGB")
             filename = f"{uuid.uuid4().hex}.webp"
             filepath = os.path.join("static/uploads", filename)
-
             image.save(filepath, "WEBP", quality=80, method=4)
             backend_domain = "http://localhost:8000"
             image_urls.append(f"{backend_domain}/static/uploads/{filename}")
-        except Exception as e:
-            print(f"Error processing image: {e}")
+        except Exception:
             raise HTTPException(status_code=400, detail="Помилка обробки зображення")
 
-    new_account = models.AccountDB(
-        title=title, shortDesc=shortDesc, price=price, base_price=base_price,
-        tags=tags, bind=bind, images=json.dumps(image_urls), status="active", stats=stats
-    )
+    new_account = models.AccountDB(title=title, shortDesc=shortDesc, price=price, base_price=base_price, tags=tags,
+                                   bind=bind, images=json.dumps(image_urls), status="active", stats=stats)
     db.add(new_account)
     db.commit()
     return {"status": "success"}
@@ -975,8 +1423,8 @@ def get_promocodes(db: Session = Depends(get_db)):
 @app.post("/api/promocodes")
 def create_promocode(promo: PromoCodeCreate, db: Session = Depends(get_db),
                      current_admin: models.UserDB = Depends(get_current_admin)):
-    if db.query(models.PromoCodeDB).filter(models.PromoCodeDB.code == promo.code.upper()).first(): return {
-        "error": "Такий код вже існує"}
+    if db.query(models.PromoCodeDB).filter(models.PromoCodeDB.code == promo.code.upper()).first():
+        return {"error": "Такий код вже існує"}
     db.add(models.PromoCodeDB(code=promo.code.upper(), type=promo.type, value=promo.value, target=promo.target,
                               max_uses=promo.max_uses, min_order_amount=promo.min_order_amount,
                               expiry_date=promo.expiry_date, is_active=1, target_items=json.dumps(promo.target_items),

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Settings, Trash2, Save, Ticket, X } from 'lucide-react';
+import { Plus, Settings, Trash2, Save, Ticket, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiPost, apiDelete, handleApiError } from '../../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../../config/api';
@@ -21,6 +21,10 @@ const AdminPromo = ({
   const [promoTarget, setPromoTarget] = useState('all'); 
   const [selectedSpecificItems, setSelectedSpecificItems] = useState([]);
   
+  // 🔥 ТЕГ ТА КАТЕГОРІЇ ГІЛЬДІЇ 🔥
+  const [guildTag, setGuildTag] = useState('');
+  const [guildCategories, setGuildCategories] = useState(['rss_all', 'gem_all', 'oth_all']); // Без акаунтів за замовчуванням!
+  
   const [maxUses, setMaxUses] = useState(0);
   const [minAmount, setMinAmount] = useState(0);
   const [expiryDate, setExpiryDate] = useState('');
@@ -35,7 +39,9 @@ const AdminPromo = ({
   };
 
   const addPromoCode = async () => {
-    if (!promoCode || !promoValue) return toast.error(t('common.error'));
+    // 🔥 Виправлена валідація: для гільдії promoValue не обов'язкове 🔥
+    if (!promoCode) return toast.error(t('common.error') || 'Введіть код');
+    if (promoTarget !== 'guild' && !promoValue) return toast.error(t('common.error') || 'Введіть значення');
 
     let targetIds = [];
     let targetNames = [];
@@ -60,12 +66,19 @@ const AdminPromo = ({
           if (item) targetNames.push(item.range);
         }
       });
+    } else if (promoTarget === 'guild') {
+      if (!guildTag.trim()) return toast.error("Введіть тег гільдії!");
+      if (guildCategories.length === 0) return toast.error("Виберіть хоча б одну категорію для гільдії!");
+      
+      targetIds = [...guildCategories];
+      targetNames = [guildTag.trim()]; 
     }
 
     const newPromo = {
       code: promoCode.trim().toUpperCase(),
-      type: promoType,
-      value: String(promoValue),
+      type: promoTarget === 'guild' ? 'percent' : promoType, 
+      // 🔥 Для гільдії передаємо технічний "0", бо ціна все одно рахується від base_price
+      value: promoTarget === 'guild' ? "0" : String(promoValue),
       target: promoTarget,
       max_uses: parseInt(maxUses) || 0,
       min_order_amount: parseFloat(minAmount) || 0,
@@ -78,7 +91,8 @@ const AdminPromo = ({
       await apiPost(getFullUrl(API_ENDPOINTS.PROMOCODE_CREATE), newPromo);
       toast.success(t('common.success'));
       fetchPromocodes();
-      setPromoCode(''); setPromoValue(''); setMaxUses(0); setMinAmount(0); setExpiryDate(''); setSelectedSpecificItems([]);
+      setPromoCode(''); setPromoValue(''); setMaxUses(0); setMinAmount(0); setExpiryDate(''); 
+      setSelectedSpecificItems([]); setGuildTag(''); setGuildCategories(['rss_all', 'gem_all', 'oth_all']);
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
@@ -92,6 +106,16 @@ const AdminPromo = ({
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
+  };
+
+  const getGuildCatsStr = (items) => {
+    if (!items || items.length === 0) return 'Усі товари';
+    let cats = [];
+    if (items.includes('rss_all')) cats.push('Ресурси');
+    if (items.includes('gem_all')) cats.push('Геми');
+    if (items.includes('oth_all')) cats.push('Послуги');
+    if (items.includes('acc_all')) cats.push('Акаунти');
+    return cats.join(', ');
   };
 
   return (
@@ -133,7 +157,12 @@ const AdminPromo = ({
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.typeLabel')}</label>
-                <select value={promoType} onChange={(e) => setPromoType(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm outline-none">
+                <select 
+                  value={promoTarget === 'guild' ? 'percent' : promoType} 
+                  onChange={(e) => setPromoType(e.target.value)} 
+                  disabled={promoTarget === 'guild'}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <option value="percent">{t('admin.promo.typePercent')}</option>
                   <option value="fixed">{t('admin.promo.typeFixed')}</option>
                   <option value="item">{t('admin.promo.typeItem')}</option>
@@ -143,10 +172,11 @@ const AdminPromo = ({
                 <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.valueLabel')}</label>
                 <input 
                   type={promoType === 'item' ? "text" : "number"}
-                  value={promoValue}
+                  value={promoTarget === 'guild' ? '' : promoValue}
                   onChange={(e) => setPromoValue(e.target.value)}
-                  placeholder={promoType === 'percent' ? t('admin.promo.valuePlaceholderPercent') : promoType === 'fixed' ? t('admin.promo.valuePlaceholderFixed') : t('admin.promo.valuePlaceholderItem')}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-emerald-400 font-bold text-sm focus:border-blue-500 outline-none" 
+                  disabled={promoTarget === 'guild'}
+                  placeholder={promoTarget === 'guild' ? 'До собівартості' : promoType === 'percent' ? t('admin.promo.valuePlaceholderPercent') : promoType === 'fixed' ? t('admin.promo.valuePlaceholderFixed') : t('admin.promo.valuePlaceholderItem')}
+                  className={`w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-emerald-400 font-bold text-sm focus:border-blue-500 outline-none ${promoTarget === 'guild' ? 'opacity-50 cursor-not-allowed' : ''}`} 
                 />
               </div>
             </div>
@@ -168,24 +198,74 @@ const AdminPromo = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.targetLabel')}</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-                {['all', 'accounts', 'other', 'specific'].map((target) => (
+              
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                {['all', 'accounts', 'other', 'specific', 'guild'].map((target) => (
                   <button 
                     key={target}
                     type="button"
-                    onClick={() => setPromoTarget(target)}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border ${promoTarget === target ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}
+                    onClick={() => {
+                      setPromoTarget(target);
+                      if (target === 'guild') {
+                        setPromoType('percent'); 
+                        setPromoValue(''); // Очищаємо значення, воно для гільдії не треба
+                      }
+                    }}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${promoTarget === target ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}
                   >
                     {target === 'all' && t('admin.promo.targetAll')}
                     {target === 'accounts' && t('admin.promo.targetAcc')}
                     {target === 'other' && t('admin.promo.targetOther')}
                     {target === 'specific' && t('admin.promo.targetSpecific')}
+                    {target === 'guild' && 'Гільдія (Без %)'}
                   </button>
                 ))}
               </div>
 
+              {/* 🔥 ПОЛЕ ТА КАТЕГОРІЇ ГІЛЬДІЇ 🔥 */}
+              {promoTarget === 'guild' && (
+                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 mb-4 animate-in fade-in zoom-in-95 duration-200">
+                  <label className="block text-xs font-bold text-amber-400 mb-2 uppercase tracking-wide">Тег гільдії (Наприклад: K1O)</label>
+                  <input 
+                    type="text" 
+                    value={guildTag}
+                    onChange={(e) => setGuildTag(e.target.value)}
+                    placeholder="Введіть тег..."
+                    className="w-full bg-slate-900 border border-amber-500/50 rounded-lg px-4 py-3 text-white font-bold outline-none focus:border-amber-400 mb-6 shadow-inner"
+                  />
+
+                  <label className="block text-xs font-bold text-amber-400 mb-3 uppercase tracking-wide">Категорії для знижки (До Собівартості)</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    {[
+                      { id: 'rss_all', name: 'Ресурси' },
+                      { id: 'gem_all', name: 'Самоцвіти' },
+                      { id: 'oth_all', name: 'Послуги' },
+                      { id: 'acc_all', name: 'Акаунти' }
+                    ].map(cat => (
+                      <label key={cat.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${guildCategories.includes(cat.id) ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500 hover:bg-slate-800'}`}>
+                        <input 
+                          type="checkbox" 
+                          className="hidden" 
+                          checked={guildCategories.includes(cat.id)} 
+                          onChange={() => {
+                            setGuildCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id]);
+                          }} 
+                        />
+                        <CheckCircle2 className={`w-4 h-4 transition-all ${guildCategories.includes(cat.id) ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} />
+                        <span className="text-xs font-bold">{cat.name}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-amber-500/80 mt-3 flex items-center gap-1.5 font-medium">
+                    <ShieldAlert className="w-4 h-4 flex-shrink-0" /> 
+                    <span>Знижка до собівартості застосується <b>ТІЛЬКИ</b> до вибраних категорій вище. Кешбек і реферальні нарахування за це замовлення будуть скасовані.</span>
+                  </p>
+                </div>
+              )}
+
               {promoTarget === 'specific' && (
-                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 max-h-[200px] overflow-y-auto scrollbar-hide space-y-2">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 max-h-[200px] overflow-y-auto scrollbar-hide space-y-2 animate-in fade-in">
                   {[
                     ...adminAccounts.map(a => ({ id: `acc_${a.id}`, name: `[Account] ${a.title}`, price: a.price })),
                     ...adminOtherItems.map(o => ({ id: `oth_${o.id}`, name: `[Service] ${o.name}`, price: o.price })),
@@ -225,33 +305,45 @@ const AdminPromo = ({
             {adminPromoList.length === 0 ? (
               <div className="text-center text-slate-500 py-10 text-sm">{t('admin.promo.noActive')}</div>
             ) : (
-              adminPromoList.map(promo => (
-                <div key={promo.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 group hover:border-blue-500/50 transition-all">
-                  <div className="flex items-center justify-between">
-                    <div className="text-lg font-black text-white tracking-wider">{promo.code}</div>
-                    <button onClick={() => removePromoCode(promo.id)} className="p-2 text-slate-400 hover:text-red-400 transition-colors bg-slate-900 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold">
-                      {promo.type === 'percent' && `-${promo.value}%`}
-                      {promo.type === 'fixed' && `-${promo.value}$`}
-                      {promo.type === 'item' && `${t('admin.promo.giftLabel')} ${promo.value}`}
-                    </span>
-                    <span className="text-xs bg-slate-800 text-slate-400 border border-slate-600 px-2 py-0.5 rounded">
-                      {promo.target === 'all' && t('admin.promo.targetAll')}
-                      {promo.target === 'accounts' && t('admin.promo.targetAcc')}
-                      {promo.target === 'other' && t('admin.promo.targetOther')}
-                      {promo.target === 'specific' && t('admin.promo.targetSpecific')}
-                    </span>
-                    {promo.max_uses > 0 && (
-                      <span className="text-xs bg-blue-900/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
-                        {t('admin.promo.usesLabel')} {promo.current_uses} / {promo.max_uses}
+              adminPromoList.map(promo => {
+                let parsedNames = [];
+                let parsedTargets = [];
+                try { parsedNames = typeof promo.target_names === 'string' ? JSON.parse(promo.target_names) : (promo.target_names || []); } catch(e) {}
+                try { parsedTargets = typeof promo.target_items === 'string' ? JSON.parse(promo.target_items) : (promo.target_items || []); } catch(e) {}
+
+                return (
+                  <div key={promo.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 group hover:border-blue-500/50 transition-all">
+                    <div className="flex items-center justify-between">
+                      <div className="text-lg font-black text-white tracking-wider">{promo.code}</div>
+                      <button onClick={() => removePromoCode(promo.id)} className="p-2 text-slate-400 hover:text-red-400 transition-colors bg-slate-900 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold">
+                        {promo.target === 'guild' ? 'Собівартість' : (
+                          <>
+                            {promo.type === 'percent' && `-${promo.value}%`}
+                            {promo.type === 'fixed' && `-${promo.value}$`}
+                            {promo.type === 'item' && `${t('admin.promo.giftLabel')} ${promo.value}`}
+                          </>
+                        )}
                       </span>
-                    )}
+                      <span className={`text-xs border px-2 py-0.5 rounded font-bold ${promo.target === 'guild' ? 'bg-amber-900/30 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-400 border-slate-600'}`}>
+                        {promo.target === 'all' && t('admin.promo.targetAll')}
+                        {promo.target === 'accounts' && t('admin.promo.targetAcc')}
+                        {promo.target === 'other' && t('admin.promo.targetOther')}
+                        {promo.target === 'specific' && t('admin.promo.targetSpecific')}
+                        {promo.target === 'guild' && `🛡️ Гільдія: ${parsedNames[0] || 'Для своїх'} (${getGuildCatsStr(parsedTargets)})`}
+                      </span>
+                      {promo.max_uses > 0 && (
+                        <span className="text-xs bg-blue-900/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
+                          {t('admin.promo.usesLabel')} {promo.current_uses} / {promo.max_uses}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

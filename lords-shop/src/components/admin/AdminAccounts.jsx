@@ -4,46 +4,118 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   Save, Globe, Calculator, DollarSign, Percent, ListChecks,
-  Image as ImageIcon, X, Plus, Search, Edit, Trash2, Loader2
+  Image as ImageIcon, X, Plus, Search, Edit, Trash2, Loader2, Swords, ShieldCheck, Heart, Crown
 } from 'lucide-react';
 import { apiPost, apiPut, apiDelete, handleApiError } from '../../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../../config/api';
-import ConfirmDialog from '../ConfirmDialog';
+
+// 🔥 ВИПРАВЛЕННЯ: Компоненти винесені назовні, щоб інпути не втрачали фокус 🔥
+const StatInputField = ({ label, fieldKey, placeholder, accStats, updateStat, colorMode }) => {
+  const isGreen = colorMode === 'leader';
+  return (
+    <div className={`p-3 rounded-xl border ${isGreen ? 'bg-emerald-900/10 border-emerald-500/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
+      <label className={`block text-[11px] font-bold mb-2 uppercase tracking-wider ${isGreen ? 'text-emerald-500' : 'text-slate-400'}`}>
+        {label}
+      </label>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={accStats[fieldKey] || ''}
+        onChange={(e) => updateStat(fieldKey, e.target.value)}
+        className={`w-full bg-slate-950 border rounded-lg px-3 py-2 font-bold text-xs outline-none transition-colors ${
+          isGreen ? 'border-emerald-500/50 text-emerald-400 focus:border-emerald-400' : 'border-slate-700 text-slate-300 focus:border-slate-500'
+        }`}
+      />
+    </div>
+  );
+};
+
+const SingleStatInput = ({ label, fieldKey, placeholder, accStats, updateStat }) => (
+  <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
+    <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">{label}</label>
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={accStats[fieldKey] || ''}
+      onChange={(e) => updateStat(fieldKey, e.target.value)}
+      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold text-xs focus:border-blue-500 outline-none transition-colors"
+    />
+  </div>
+);
 
 const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   const { t } = useTranslation();
 
-  const [accountFormLng, setAccountFormLng] = useState('ua'); 
+  const [accountFormLng, setAccountFormLng] = useState('ua');
   const [sellerPrice, setSellerPrice] = useState('');
   const [markup, setMarkup] = useState('');
-  const [markupType, setMarkupType] = useState('fixed'); 
+  const [markupType, setMarkupType] = useState('fixed');
 
   const [accSearchQuery, setAccSearchQuery] = useState('');
   const [accStatusFilter, setAccStatusFilter] = useState('all');
-  
+
   const [accTitle, setAccTitle] = useState('');
   const [accShortDesc, setAccShortDesc] = useState('');
   const [accTags, setAccTags] = useState('');
   const [accBind, setAccBind] = useState('');
-  
-  // 🔥 ОНОВЛЕННЯ: Стейт для Файлів та їх Прев'ю (Без Base64!) 🔥
+
   const [mainImageFile, setMainImageFile] = useState(null);
   const [mainImagePreview, setMainImagePreview] = useState(null);
   const [additionalFiles, setAdditionalFiles] = useState([]);
   const [additionalPreviews, setAdditionalPreviews] = useState([]);
-  
+
   const [isPublishing, setIsPublishing] = useState(false);
 
-  const [accStats, setAccStats] = useState({
-    might: '', troops: '', mix_atk: '', heroes: '', artifacts: ''
-  });
+  // 🔥 СТАТИ 🔥
+  const [statMode, setStatMode] = useState('leader');
+
+  const initialStats = {
+    mix_atk_leader: '', mix_atk_base: '',
+    mono_atk_leader: '',
+    army_mix_atk_leader: '', army_mix_atk_base: '',
+    army_mono_atk_leader: '',
+    
+    mix_def_leader: '', mix_def_base: '',
+    mono_def_leader: '',
+    army_mix_def_leader: '', army_mix_def_base: '',
+    army_mono_def_leader: '',
+    
+    mix_hp_leader: '', mix_hp_base: '',
+    mono_hp_leader: '',
+    army_mix_hp_leader: '', army_mix_hp_base: '',
+    army_mono_hp_leader: '',
+    
+    castle: '', blessed: '', champ_gear: '', heroes: '',
+    familiars: '', artifacts: '', attribute_lvl: '', max_kd: ''
+  };
+
+  const [accStats, setAccStats] = useState(initialStats);
+  
+  // 🔥 КАСТОМНІ ПОЛЯ ІНВЕНТАРЮ 🔥
+  const [customFields, setCustomFields] = useState([]);
+
+  const addCustomField = () => {
+    setCustomFields([...customFields, { label: '', value: '' }]);
+  };
+
+  const updateCustomField = (index, key, newValue) => {
+    const updatedFields = [...customFields];
+    updatedFields[index][key] = newValue;
+    setCustomFields(updatedFields);
+  };
+
+  const removeCustomField = (index) => {
+    setCustomFields(customFields.filter((_, i) => i !== index));
+  };
+
+  const updateStat = (key, value) => {
+    setAccStats(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleMainImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
     setMainImageFile(file);
-    // Створюємо легке локальне прев'ю
     if (mainImagePreview) URL.revokeObjectURL(mainImagePreview);
     setMainImagePreview(URL.createObjectURL(file));
   };
@@ -51,7 +123,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   const handleAdditionalImagesUpload = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    
     setAdditionalFiles(prev => [...prev, ...files]);
     const newPreviews = files.map(file => URL.createObjectURL(file));
     setAdditionalPreviews(prev => [...prev, ...newPreviews]);
@@ -61,7 +132,7 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
     setAdditionalFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     setAdditionalPreviews(prev => {
       const newPreviews = [...prev];
-      URL.revokeObjectURL(newPreviews[indexToRemove]); // Очищаємо пам'ять
+      URL.revokeObjectURL(newPreviews[indexToRemove]);
       newPreviews.splice(indexToRemove, 1);
       return newPreviews;
     });
@@ -69,10 +140,11 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
 
   const clearForm = () => {
     setAccTitle(''); setAccShortDesc(''); setSellerPrice(''); setMarkup('');
-    setAccTags(''); setAccBind(''); 
+    setAccTags(''); setAccBind('');
     setMainImageFile(null); setMainImagePreview(null);
     setAdditionalFiles([]); setAdditionalPreviews([]);
-    setAccStats({ might: '', troops: '', mix_atk: '', heroes: '', artifacts: '' });
+    setAccStats(initialStats);
+    setCustomFields([]); // Очищуємо кастомні поля
   };
 
   let finalPriceAcc = 0;
@@ -89,7 +161,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
     const toastId = toast.loading('Обробка та збереження акаунта...');
 
     try {
-      // 🔥 ОНОВЛЕННЯ: Відправляємо FormData замість JSON 🔥
       const formData = new FormData();
       formData.append('title', accTitle);
       formData.append('shortDesc', accShortDesc);
@@ -97,9 +168,38 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
       formData.append('base_price', sellerPrice.toString());
       formData.append('tags', accTags);
       formData.append('bind', accBind);
-      formData.append('stats', JSON.stringify(accStats));
 
-      // Додаємо файли (FastAPI очікує список `images`)
+      const structuredStats = {
+        mix_atk: { leader: accStats.mix_atk_leader, base: accStats.mix_atk_base },
+        mono_atk: { leader: accStats.mono_atk_leader, base: accStats.mix_atk_base },
+        army_mix_atk: { leader: accStats.army_mix_atk_leader, base: accStats.army_mix_atk_base },
+        army_mono_atk: { leader: accStats.army_mono_atk_leader, base: accStats.army_mix_atk_base },
+        
+        mix_def: { leader: accStats.mix_def_leader, base: accStats.mix_def_base },
+        mono_def: { leader: accStats.mono_def_leader, base: accStats.mix_def_base },
+        army_mix_def: { leader: accStats.army_mix_def_leader, base: accStats.army_mix_def_base },
+        army_mono_def: { leader: accStats.army_mono_def_leader, base: accStats.army_mix_def_base },
+
+        mix_hp: { leader: accStats.mix_hp_leader, base: accStats.mix_hp_base },
+        mono_hp: { leader: accStats.mono_hp_leader, base: accStats.mix_hp_base },
+        army_mix_hp: { leader: accStats.army_mix_hp_leader, base: accStats.army_mix_hp_base },
+        army_mono_hp: { leader: accStats.army_mono_hp_leader, base: accStats.army_mix_hp_base },
+
+        castle: accStats.castle,
+        blessed: accStats.blessed,
+        champ_gear: accStats.champ_gear,
+        heroes: accStats.heroes,
+        familiars: accStats.familiars,
+        artifacts: accStats.artifacts,
+        attribute_lvl: accStats.attribute_lvl,
+        max_kd: accStats.max_kd,
+        
+        // 🔥 ДОДАЄМО КАСТОМНІ ПОЛЯ 🔥
+        custom_inventory: customFields.filter(field => field.label.trim() !== '')
+      };
+
+      formData.append('stats', JSON.stringify(structuredStats));
+
       if (mainImageFile) formData.append('images', mainImageFile);
       additionalFiles.forEach(file => {
         formData.append('images', file);
@@ -117,7 +217,7 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
       setIsPublishing(false);
     }
   };
-   
+    
   const handleStatusChange = async (id, newStatus) => {
     const toastId = toast.loading(t('common.loading'));
     try {
@@ -148,7 +248,7 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   };
 
   const filteredAccounts = adminAccounts.filter(acc => {
-    const matchesSearch = acc.title.toLowerCase().includes(accSearchQuery.toLowerCase()) || 
+    const matchesSearch = acc.title.toLowerCase().includes(accSearchQuery.toLowerCase()) ||
                           (acc.id && acc.id.toString() === accSearchQuery);
     const matchesStatus = accStatusFilter === 'all' || acc.status === accStatusFilter;
     return matchesSearch && matchesStatus;
@@ -158,21 +258,22 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg">
         <div><h1 className="text-2xl font-bold text-white mb-1">{t('admin.accounts.title')}</h1></div>
-        <button 
-          onClick={handlePublishAccount} 
+        <button
+          onClick={handlePublishAccount}
           disabled={isPublishing}
           className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/20 hover:-translate-y-1"
         >
-          {isPublishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} 
+          {isPublishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
           {isPublishing ? t('common.loading') : t('admin.accounts.publishBtn')}
         </button>
       </div>
       
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg">
+          
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2"><Globe className="w-5 h-5 text-blue-400" /> {t('admin.accounts.textInfoTitle')}</h3>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2"><Globe className="w-5 h-5 text-blue-400" /> Основна Інформація</h3>
               <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
                 {['ua', 'en', 'de'].map(lng => (
                   <button key={lng} onClick={() => setAccountFormLng(lng)} className={`px-4 py-1.5 rounded text-xs font-bold uppercase ${accountFormLng === lng ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>{lng}</button>
@@ -216,43 +317,153 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.tagsLabel')}</label>
-                <input type="text" value={accTags} onChange={(e) => setAccTags(e.target.value)} placeholder={t('admin.accounts.tagsPlaceholder')} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none" />
+                <input type="text" value={accTags} onChange={(e) => setAccTags(e.target.value)} placeholder="T4, T5, Champ..." className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.bindLabel')}</label>
-                <input type="text" value={accBind} onChange={(e) => setAccBind(e.target.value)} placeholder={t('admin.accounts.bindPlaceholder')} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none" />
+                <input type="text" value={accBind} onChange={(e) => setAccBind(e.target.value)} placeholder="Facebook, Google..." className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none" />
               </div>
             </div>
           </div>
           
           <div className="mt-8 pt-6 border-t border-slate-800">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <ListChecks className="w-5 h-5 text-blue-400" /> {t('admin.accounts.statsTitle')}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.mightLabel')}</label>
-                <input type="text" value={accStats.might} onChange={(e) => setAccStats({...accStats, might: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.troopsLabel')}</label>
-                <input type="text" value={accStats.troops} onChange={(e) => setAccStats({...accStats, troops: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.mixAtkLabel')}</label>
-                <input type="text" value={accStats.mix_atk} onChange={(e) => setAccStats({...accStats, mix_atk: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.heroesLabel')}</label>
-                <input type="text" value={accStats.heroes} onChange={(e) => setAccStats({...accStats, heroes: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.accounts.artifactsLabel')}</label>
-                <input type="text" value={accStats.artifacts} onChange={(e) => setAccStats({...accStats, artifacts: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <ListChecks className="w-5 h-5 text-blue-400" /> Характеристики для Аналітики
+              </h3>
+              
+              <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 w-max shadow-inner">
+                <button
+                  onClick={() => setStatMode('leader')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${statMode === 'leader' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+                >
+                  🟢 З Лідером
+                </button>
+                <button
+                  onClick={() => setStatMode('base')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${statMode === 'base' ? 'bg-slate-700 text-white border border-slate-500 shadow-sm' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+                >
+                  ⚪ Базові
+                </button>
               </div>
             </div>
-          </div>
 
+            {/* ATK */}
+            <div className="mb-6">
+              <h4 className="text-[11px] uppercase tracking-widest font-black text-rose-500 mb-3 flex items-center gap-1"><Swords className="w-4 h-4"/> Атака Військ (ATK)</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {statMode === 'leader' ? (
+                  <>
+                    <StatInputField label="Mix Атака" fieldKey="mix_atk_leader" placeholder="1204-1140-1180" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Mono Атака" fieldKey="mono_atk_leader" placeholder="1634-1632-1678" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Army Mix Атака" fieldKey="army_mix_atk_leader" placeholder="500" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Army Mono Атака" fieldKey="army_mono_atk_leader" placeholder="450" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                  </>
+                ) : (
+                  <>
+                    <StatInputField label="Base Mix & Mono Атака" fieldKey="mix_atk_base" placeholder="120-114-118" accStats={accStats} updateStat={updateStat} colorMode="base" />
+                    <StatInputField label="Base Army Mix & Mono" fieldKey="army_mix_atk_base" placeholder="300" accStats={accStats} updateStat={updateStat} colorMode="base" />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* DEF */}
+            <div className="mb-6">
+              <h4 className="text-[11px] uppercase tracking-widest font-black text-blue-500 mb-3 flex items-center gap-1"><ShieldCheck className="w-4 h-4"/> Захист Військ (DEF)</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {statMode === 'leader' ? (
+                  <>
+                    <StatInputField label="Mix Захист" fieldKey="mix_def_leader" placeholder="1000" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Mono Захист" fieldKey="mono_def_leader" placeholder="1200" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Army Mix Захист" fieldKey="army_mix_def_leader" placeholder="300" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Army Mono Захист" fieldKey="army_mono_def_leader" placeholder="350" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                  </>
+                ) : (
+                  <>
+                    <StatInputField label="Base Mix & Mono Захист" fieldKey="mix_def_base" placeholder="150" accStats={accStats} updateStat={updateStat} colorMode="base" />
+                    <StatInputField label="Base Army Mix & Mono" fieldKey="army_mix_def_base" placeholder="50" accStats={accStats} updateStat={updateStat} colorMode="base" />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* HP */}
+            <div className="mb-6">
+              <h4 className="text-[11px] uppercase tracking-widest font-black text-emerald-500 mb-3 flex items-center gap-1"><Heart className="w-4 h-4"/> Здоров'я Військ (HP)</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {statMode === 'leader' ? (
+                  <>
+                    <StatInputField label="Mix HP" fieldKey="mix_hp_leader" placeholder="1100" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Mono HP" fieldKey="mono_hp_leader" placeholder="1300" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Army Mix HP" fieldKey="army_mix_hp_leader" placeholder="400" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                    <StatInputField label="Army Mono HP" fieldKey="army_mono_hp_leader" placeholder="450" accStats={accStats} updateStat={updateStat} colorMode="leader" />
+                  </>
+                ) : (
+                  <>
+                    <StatInputField label="Base Mix & Mono HP" fieldKey="mix_hp_base" placeholder="200" accStats={accStats} updateStat={updateStat} colorMode="base" />
+                    <StatInputField label="Base Army Mix & Mono" fieldKey="army_mix_hp_base" placeholder="100" accStats={accStats} updateStat={updateStat} colorMode="base" />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* INVENTORY */}
+            <div className="mt-8 border-t border-slate-800 pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[11px] uppercase tracking-widest font-black text-purple-400 flex items-center gap-1">
+                  <Crown className="w-4 h-4"/> Герої, Фамільяри та Інше
+                </h4>
+                <button 
+                  onClick={addCustomField}
+                  className="text-xs flex items-center gap-1 font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg border border-blue-500/20"
+                >
+                  <Plus className="w-3 h-3" /> Додати поле
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <SingleStatInput label="Рівень Замку" fieldKey="castle" placeholder="25" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Благо (Blessed)" fieldKey="blessed" placeholder="62 Blessed" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Champ Gear" fieldKey="champ_gear" placeholder="3 Міфік" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Донатні Герої" fieldKey="heroes" placeholder="15" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Донатні Фамільяри" fieldKey="familiars" placeholder="4/8" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Зірки Артефактів" fieldKey="artifacts" placeholder="450" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Рівень Атрибута" fieldKey="attribute_lvl" placeholder="10" accStats={accStats} updateStat={updateStat} />
+                <SingleStatInput label="Max KD (Королівство)" fieldKey="max_kd" placeholder="1250" accStats={accStats} updateStat={updateStat} />
+                
+                {/* КАСТОМНІ ПОЛЯ */}
+                {customFields.map((field, idx) => (
+                  <div key={idx} className="bg-slate-900/80 p-3 rounded-xl border border-blue-700/50 relative group shadow-sm shadow-blue-900/10">
+                    <button 
+                      onClick={() => removeCustomField(idx)} 
+                      className="absolute top-2 right-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950 rounded-md p-1"
+                      title="Видалити поле"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    
+                    <input 
+                      type="text"
+                      placeholder="Назва (напр. EMP шмотка)"
+                      value={field.label}
+                      onChange={(e) => updateCustomField(idx, 'label', e.target.value)}
+                      className="w-[85%] bg-transparent text-[11px] font-bold text-blue-400 mb-2 uppercase tracking-wider outline-none border-b border-transparent focus:border-blue-500/50 pb-0.5 transition-colors placeholder:text-blue-900"
+                    />
+                    
+                    <input 
+                      type="text"
+                      placeholder="Значення (напр. 3 шт)"
+                      value={field.value}
+                      onChange={(e) => updateCustomField(idx, 'value', e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold text-xs focus:border-blue-500 outline-none transition-colors"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
         </div>
 
         <div className="xl:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg flex flex-col gap-6">
@@ -300,6 +511,7 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
         </div>
       </div>
       
+      {/* ТАБЛИЦЯ ІСНУЮЧИХ АКАУНТІВ */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg mt-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <h3 className="text-xl font-bold text-white">{t('admin.accounts.dbTitle')} ({filteredAccounts.length})</h3>
@@ -307,15 +519,15 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder={t('admin.accounts.searchPlaceholder')} 
+              <input
+                type="text"
+                placeholder={t('admin.accounts.searchPlaceholder')}
                 value={accSearchQuery}
                 onChange={(e) => setAccSearchQuery(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:border-blue-500 outline-none w-full sm:w-64 transition-colors"
               />
             </div>
-            <select 
+            <select
               value={accStatusFilter}
               onChange={(e) => setAccStatusFilter(e.target.value)}
               className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white focus:border-blue-500 outline-none cursor-pointer transition-colors"
@@ -340,7 +552,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
                 
                 <div className="w-full h-32 bg-slate-900 rounded-xl mb-3 overflow-hidden border border-slate-700 flex items-center justify-center text-slate-700 relative">
                   {acc.images && acc.images.length > 0 ? (
-                    // 🔥 ДОДАНО loading="lazy" ТА decoding="async" ДЛЯ ПРИШВИДШЕННЯ 🔥
                     <img src={acc.images[0]} alt={acc.title} loading="lazy" decoding="async" className={`w-full h-full object-cover transition-all ${acc.status === 'sold' ? 'grayscale opacity-50' : ''}`} />
                   ) : (
                     <ImageIcon className="w-8 h-8" />
@@ -357,12 +568,12 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
                 <div className="text-emerald-400 font-bold text-lg mb-3">${acc.price}</div>
                 
                 <div className="mb-4 mt-auto">
-                  <select 
-                    value={acc.status || 'active'} 
+                  <select
+                    value={acc.status || 'active'}
                     onChange={(e) => handleStatusChange(acc.id, e.target.value)}
                     className={`w-full text-xs font-bold py-2 px-3 rounded-lg outline-none cursor-pointer border transition-colors
-                      ${acc.status === 'sold' ? 'bg-red-900/30 text-red-400 border-red-500/30' : 
-                        acc.status === 'processing' ? 'bg-amber-900/30 text-amber-400 border-amber-500/30' : 
+                      ${acc.status === 'sold' ? 'bg-red-900/30 text-red-400 border-red-500/30' :
+                        acc.status === 'processing' ? 'bg-amber-900/30 text-amber-400 border-amber-500/30' :
                         'bg-emerald-900/30 text-emerald-400 border-emerald-500/30'}
                     `}
                   >

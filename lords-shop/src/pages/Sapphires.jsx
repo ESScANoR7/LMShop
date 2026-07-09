@@ -1,21 +1,38 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Star, Info, X, CheckCircle2, Ticket, Heart } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext'; // 🔥 ІМПОРТ УЛЮБЛЕНОГО 🔥
 import { useTranslation } from 'react-i18next';
+import OrderModal from '../components/OrderModal';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import toast from 'react-hot-toast';
+
+// 🔥 ДОПОМІЖНА ФУНКЦІЯ ПРЯМО ТУТ (Щоб уникнути білого екрану) 🔥
+const isPromoApplicable = (promo, type, id) => {
+  if (!promo) return false;
+  const prefix = type === 'account' ? 'acc_' : type === 'rss' ? 'rss_' : type === 'gems' ? 'gem_' : 'oth_';
+  
+  if (promo.target_items && promo.target_items.length > 0) {
+    return promo.target_items.includes(`${prefix}${id}`) || promo.target_items.includes(`${prefix}all`);
+  }
+  
+  if (promo.target === 'all' || promo.target === 'guild') return true;
+  if (promo.target === 'accounts' && type === 'account') return true;
+  if (promo.target === 'other' && type !== 'account') return true;
+  
+  return false;
+};
 
 const Sapphires = () => {
   const { t } = useTranslation();
-  const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
+  
   const { addToCart, appliedPromo } = useCart();
-  const { toggleWishlist, isInWishlist } = useWishlist(); // 🔥 ДІСТАЄМО ФУНКЦІЇ УЛЮБЛЕНОГО 🔥
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [formData, setFormData] = useState({}); 
   
-  // --- СТАНИ ДЛЯ БАЗИ ДАНИХ ---
   const [specialItems, setSpecialItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -88,111 +105,142 @@ const Sapphires = () => {
     toast.success(`${selectedItem.name} ${t('special_page.addedSuccess')}`);
   };
 
-  // 🔥 Функція для додавання товару в улюблене 🔥
   const handleWishlistClick = (item) => {
     const wishlistItem = {
       id: item.id,
       name: item.name,
       desc: item.desc,
       price: item.price,
-      type: 'special', // Вказуємо тип для кошика та логіки улюбленого
+      type: 'special', 
       color: item.color
     };
     toggleWishlist(wishlistItem);
   };
 
-  // Функція для визначення CSS класу градієнта
   const getColorClass = (colorCode) => {
     switch (colorCode) {
-      case 'orange': return 'from-amber-400 to-orange-500';
-      case 'blue': return 'from-blue-400 to-indigo-500';
-      case 'green': return 'from-emerald-400 to-teal-500';
-      case 'purple': return 'from-purple-400 to-fuchsia-500';
-      case 'red': return 'from-rose-400 to-red-500';
-      default: return 'from-blue-400 to-indigo-500'; // По замовчуванню синій
+      case 'orange': return 'from-amber-600 to-amber-800 border-amber-500/30';
+      case 'blue': return 'from-blue-600 to-blue-800 border-blue-500/30';
+      case 'green': return 'from-emerald-600 to-emerald-800 border-emerald-500/30';
+      case 'purple': return 'from-purple-600 to-purple-800 border-purple-500/30';
+      case 'red': return 'from-red-600 to-red-800 border-red-500/30';
+      default: return 'from-zinc-600 to-zinc-800 border-zinc-500/30'; 
     }
   };
 
   if (isLoading) {
-    return <div className="text-center text-slate-400 py-32 text-xl font-bold animate-pulse">{t('special_page.loading')}</div>;
+    return <div className="text-center text-zinc-500 py-32 text-xl font-bold animate-pulse">{t('special_page.loading')}</div>;
   }
 
   return (
     <div className="flex flex-col gap-12 pb-20 pt-8 max-w-6xl mx-auto px-4">
       
-      <header className="text-center">
-        <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">{t('special_page.title')}</h1>
-        <p className="text-slate-400 max-w-xl mx-auto">
+      <header className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tighter leading-tight">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-red-500 to-amber-500 drop-shadow-[0_0_20px_rgba(220,38,38,0.4)]">
+            {t('special_page.title')}
+          </span>
+        </h1>
+        <p className="text-zinc-400 max-w-xl mx-auto font-medium">
           {t('special_page.subtitle')}
         </p>
       </header>
 
       {specialItems.length === 0 ? (
-        <div className="text-center text-slate-500 py-10">{t('special_page.noItems')}</div>
+        <div className="text-center text-zinc-500 py-10 font-medium">{t('special_page.noItems')}</div>
       ) : (
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
           {specialItems.map((item) => {
-            // РОЗУМНА ЛОГІКА ПРОМОКОДУ
-            const isTargeted = appliedPromo && appliedPromo.target_items && appliedPromo.target_items.includes(`oth_${item.id}`);
-            const isGlobal = appliedPromo && (!appliedPromo.target_items || appliedPromo.target_items.length === 0);
-            const hasActiveDiscount = isTargeted || isGlobal;
-            
-            // 🔥 Перевіряємо чи товар в улюбленому 🔥
+            // 🔥 РОЗУМНА ЛОГІКА ПРОМОКОДУ 🔥
+            const hasActiveDiscount = isPromoApplicable(appliedPromo, 'special', item.id) && appliedPromo;
             const isLiked = isInWishlist(item.id, 'special');
+
+            // 🔥 ЛОГІКА ПРОРАХУНКУ ЦІН 🔥
+            const iPrice = parseFloat(item.price || 0);
+            const iBase = parseFloat(item.base_price || iPrice);
+            let discountedPrice = iPrice;
+
+            if (hasActiveDiscount) {
+              if (appliedPromo.target === 'guild') {
+                discountedPrice = iBase; // Собівартість для гільдії
+              } else if (appliedPromo.type === 'percent') {
+                discountedPrice = iPrice - (iPrice * parseFloat(appliedPromo.value) / 100);
+              } else if (appliedPromo.type === 'fixed' && appliedPromo.target_items?.length > 0) {
+                discountedPrice = Math.max(0, iPrice - parseFloat(appliedPromo.value));
+              }
+            }
+
+            // Визначення стилю бордера при наявності промокоду
+            const borderStyle = hasActiveDiscount 
+              ? (appliedPromo.target === 'guild' ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'border-red-500/50 shadow-[0_0_15px_rgba(220,38,38,0.15)]') 
+              : 'border-zinc-800/50 hover:border-red-500/30';
 
             return (
               <article 
                 key={item.id} 
-                className={`group relative bg-slate-800/40 border ${hasActiveDiscount && appliedPromo ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)] bg-emerald-900/5' : 'border-slate-700 hover:border-blue-500/50'} rounded-3xl p-1 overflow-hidden transition-all hover:bg-slate-800/80 hover:-translate-y-1 shadow-lg flex flex-col`}
+                className={`relative overflow-hidden bg-zinc-900/40 backdrop-blur-md border ${borderStyle} rounded-3xl p-6 transition-all flex flex-col justify-between shadow-xl group`}
               >
-                <div className={`absolute top-0 left-0 w-full h-32 bg-gradient-to-br opacity-10 group-hover:opacity-20 transition-opacity ${getColorClass(item.color)}`}></div>
+                {/* 🔥 ВОГОНЬ ПО КУТАХ 🔥 */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-red-500/20 rounded-full blur-[50px] pointer-events-none"></div>
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500/20 rounded-full blur-[50px] pointer-events-none"></div>
                 
-                <div className="relative p-5 flex flex-col flex-1">
+                <div className="relative z-10 flex flex-col flex-1">
                   
                   {/* БІРКА ВЛАСНА (Якщо є) - Справа */}
                   {item.tag && (
-                    <div className="absolute top-0 right-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl rounded-tr-2xl shadow-lg z-10">
+                    <div className="absolute top-0 right-0 bg-gradient-to-r from-red-600 to-amber-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-bl-2xl shadow-lg z-20 backdrop-blur-md">
                       {item.tag}
                     </div>
                   )}
 
                   {/* БІРКА ПРОМОКОДУ - Зліва */}
-                  {hasActiveDiscount && appliedPromo && (
-                    <div className="absolute top-0 left-0 bg-emerald-500/20 border-b border-r border-emerald-500/50 text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-br-xl rounded-tl-2xl flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)] backdrop-blur-sm z-10">
-                      <Ticket className="w-3 h-3" /> {t('special_page.activeCode')} {appliedPromo.code}
+                  {hasActiveDiscount && (
+                    <div className={`absolute top-0 left-0 ${appliedPromo.target === 'guild' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-red-500/20 border-red-500/50 text-red-400 shadow-[0_0_10px_rgba(220,38,38,0.2)]'} border-b border-r text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-br-2xl flex items-center gap-1.5 z-20 backdrop-blur-md`}>
+                      <Ticket className="w-3 h-3" /> {appliedPromo.target === 'guild' ? 'Для Своїх' : `${t('special_page.activeCode')} ${appliedPromo.code}`}
                     </div>
                   )}
 
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br shadow-lg ${getColorClass(item.color)}`}>
-                      <Star className="w-7 h-7 text-white" />
+                  <div className="flex justify-between items-start mb-4 mt-6">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br shadow-[0_0_15px_rgba(0,0,0,0.5)] border ${getColorClass(item.color)} relative z-10`}>
+                      <Star className="w-7 h-7 text-white drop-shadow-md" />
                     </div>
 
                     {/* 🔥 КНОПКА В УЛЮБЛЕНЕ 🔥 */}
                     <button 
                       onClick={() => handleWishlistClick(item)}
-                      className={`p-2 rounded-full transition-all duration-300 ${isLiked ? 'text-rose-500 bg-rose-500/10 scale-110' : 'text-slate-500 hover:text-rose-400 hover:bg-slate-700/50'}`}
+                      className={`p-2 rounded-full transition-all duration-300 relative z-20 ${isLiked ? 'text-red-500 bg-red-500/10 scale-110' : 'text-zinc-500 hover:text-red-400 hover:bg-zinc-800'}`}
                       title={isLiked ? t('special_page.removeFromWishlist') : t('special_page.addToWishlist')}
                     >
-                      <Heart className={`w-6 h-6 transition-all ${isLiked ? 'fill-rose-500' : ''}`} />
+                      <Heart className={`w-6 h-6 transition-all ${isLiked ? 'fill-red-500' : ''}`} />
                     </button>
                   </div>
 
-                  <h3 className="text-xl font-bold text-white mb-2 leading-tight pr-2">{item.name}</h3>
-                  <p className="text-sm text-slate-400 mb-6 flex-1 line-clamp-3 group-hover:line-clamp-none transition-all">
+                  <h3 className="text-xl font-bold text-white mb-2 leading-tight pr-2 drop-shadow-md">{item.name}</h3>
+                  <p className="text-sm text-zinc-400 mb-6 flex-1 font-medium relative z-10">
                     {item.desc}
                   </p>
 
-                  <div className="flex items-end justify-between mt-auto pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-800/50 relative z-10">
+                    
+                    {/* 🔥 ВІДОБРАЖЕННЯ ЦІНИ 🔥 */}
                     <div>
-                      <div className={`text-2xl font-black ${hasActiveDiscount && appliedPromo ? 'text-emerald-400' : 'text-white'}`}>
-                        ${item.price}
-                      </div>
+                      {hasActiveDiscount && discountedPrice < iPrice ? (
+                        <div className="flex flex-col">
+                          <span className="text-xs text-zinc-500 line-through font-bold">${iPrice.toFixed(2)}</span>
+                          <span className={`text-2xl font-black ${appliedPromo.target === 'guild' ? 'text-amber-400' : 'text-red-500 drop-shadow-[0_0_5px_rgba(220,38,38,0.5)]'}`}>
+                            ${discountedPrice.toFixed(2)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-2xl font-black text-amber-500 drop-shadow-sm">
+                          ${iPrice.toFixed(2)}
+                        </div>
+                      )}
                     </div>
                     
                     <button 
                       onClick={() => handleOpenModal(item)}
-                      className={`px-4 py-3 text-white rounded-xl transition-all flex items-center gap-2 font-bold shadow-lg ${hasActiveDiscount && appliedPromo ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'}`}
+                      className={`px-4 py-3 rounded-2xl transition-all hover:scale-105 flex items-center gap-2 font-bold shadow-lg outline-none ${hasActiveDiscount ? (appliedPromo.target === 'guild' ? 'bg-gradient-to-r from-amber-600 to-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] text-zinc-950' : 'bg-gradient-to-r from-red-700 to-red-600 shadow-[0_0_15px_rgba(220,38,38,0.3)] text-white') : 'bg-zinc-800 hover:bg-red-600 border border-zinc-700 hover:border-red-500 text-white'}`}
                     >
                       <ShoppingCart className="w-5 h-5" /> 
                       <span className="hidden sm:inline">{t('special_page.buy')}</span>
@@ -208,38 +256,38 @@ const Sapphires = () => {
       {/* ДИНАМІЧНЕ МОДАЛЬНЕ ВІКНО */}
       {selectedItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setSelectedItem(null)}></div>
+          <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm" onClick={() => setSelectedItem(null)}></div>
           
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl p-6">
-            <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+          <div className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+            <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 text-zinc-500 hover:text-red-500 transition-colors">
               <X className="w-6 h-6" />
             </button>
 
-            <h2 className="text-2xl font-bold text-white mb-2 pr-8">{t('special_page.modalTitle')}</h2>
-            <p className="text-sm text-blue-400 font-medium mb-6">{selectedItem.name} — ${selectedItem.price}</p>
+            <h2 className="text-2xl font-black text-white mb-2 pr-8">{t('special_page.modalTitle')}</h2>
+            <p className="text-sm text-amber-500 font-bold mb-6">{selectedItem.name} — ${selectedItem.price}</p>
 
             <form onSubmit={handleSubmitOrder} className="space-y-4">
               {selectedItem.requiredFields?.map((field, index) => (
                 <div key={index}>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">{field}</label>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">{field}</label>
                   <input 
                     required
                     value={formData[field] || ''}
                     onChange={(e) => handleInputChange(field, e.target.value)}
                     placeholder={`${t('special_page.enterPrefix')} ${field.toLowerCase()}`}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-red-500 transition-colors shadow-inner"
                   />
                 </div>
               ))}
 
-              <div className="p-3 bg-blue-900/20 border border-blue-500/20 rounded-xl flex gap-3 mt-4">
-                <Info className="w-5 h-5 text-blue-400 flex-shrink-0" />
-                <p className="text-xs text-slate-400 leading-relaxed">
+              <div className="p-4 bg-red-950/30 border border-red-900/50 rounded-xl flex gap-3 mt-6 shadow-inner">
+                <Info className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
                   {t('special_page.modalInfo')}
                 </p>
               </div>
 
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl mt-4 flex items-center justify-center gap-2">
+              <button type="submit" className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black py-4 rounded-xl mt-4 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:scale-[1.02] transition-all">
                 <CheckCircle2 className="w-5 h-5" /> {t('special_page.addToCartBtn')}
               </button>
             </form>

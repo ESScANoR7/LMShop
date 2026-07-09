@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
-  Shield, PackageOpen, LayoutGrid, Ticket, ClipboardList, LayoutDashboard, Coins, Users
+  Shield, PackageOpen, LayoutGrid, Ticket, ClipboardList, LayoutDashboard, Coins, Users, Bell, Wallet // 🔥 ДОДАНО Wallet
 } from 'lucide-react';
 import { apiGet, handleApiError } from '../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../config/api';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-// 🔥 ІМПОРТ ВСІХ РОЗДІЛЕНИХ КОМПОНЕНТІВ 🔥
+// 🔥 ІМПОРТ ВСІХ КОМПОНЕНТІВ 🔥
 import AdminDashboard from '../components/admin/AdminDashboard';
 import AdminUsers from '../components/admin/AdminUsers';
 import AdminOrders from '../components/admin/AdminOrders';
@@ -17,6 +17,10 @@ import AdminPromo from '../components/admin/AdminPromo';
 import AdminResources from '../components/admin/AdminResources';
 import AdminOther from '../components/admin/AdminOther';
 import AdminAccounts from '../components/admin/AdminAccounts';
+import AdminNotifications from '../components/admin/AdminNotifications'; 
+import AdminAccounting from '../components/admin/AdminAccounting'; // 🔥 ПІДКЛЮЧЕНО БУХГАЛТЕРІЮ 🔥
+import AdminStoreSettings from '../components/admin/AdminStoreSettings';
+import { Settings } from 'lucide-react'; // Додай Settings до імпорту іконок з lucide-react
 
 const Admin = () => {
   const { t } = useTranslation();
@@ -162,6 +166,15 @@ const Admin = () => {
               <Users className="w-5 h-5" /> {t('admin.sidebar.users')}
             </button>
 
+            {/* 🔥 НОВА КНОПКА: ЗАРПЛАТИ 🔥 */}
+            <button onClick={() => setActiveTab('accounting')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'accounting' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <Wallet className="w-5 h-5" /> Зарплати
+            </button>
+
+            <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'notifications' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <Bell className="w-5 h-5" /> Сповіщення
+            </button>
+
             <button onClick={() => setActiveTab('cashback')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'cashback' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
               <Coins className="w-5 h-5" /> {t('admin.sidebar.cashback')}
             </button>
@@ -177,6 +190,9 @@ const Admin = () => {
             <button onClick={() => setActiveTab('promo')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'promo' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
               <Ticket className="w-5 h-5" /> {t('admin.sidebar.promo')}
             </button>
+            <button onClick={() => setActiveTab('store_settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'store_settings' ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+  <Settings className="w-5 h-5" /> Налаштування (Офлайн)
+</button>
           </nav>
         </div>
       </aside>
@@ -188,6 +204,15 @@ const Admin = () => {
         )}
         {activeTab === 'users' && (
           <AdminUsers adminUsers={adminUsers} fetchUsers={fetchUsers} openConfirmDialog={openConfirmDialog} />
+        )}
+        
+        {/* 🔥 ВИКЛИК НОВОЇ ВКЛАДКИ ЗАРПЛАТ 🔥 */}
+        {activeTab === 'accounting' && (
+          <AdminAccounting openConfirmDialog={openConfirmDialog} />
+        )}
+
+        {activeTab === 'notifications' && (
+          <AdminNotifications adminUsers={adminUsers} />
         )}
         {activeTab === 'orders' && (
           <AdminOrders adminOrders={adminOrders} fetchOrders={fetchOrders} />
@@ -204,7 +229,6 @@ const Admin = () => {
         {activeTab === 'other' && (
           <AdminOther adminOtherItems={adminOtherItems} setAdminOtherItems={setAdminOtherItems} fetchOtherItems={fetchOtherItems} openConfirmDialog={openConfirmDialog} />
         )}
-        {/* 🔥 ВКЛАДКА: АКАУНТИ (ВИКЛИК КОМПОНЕНТА) 🔥 */}
         {activeTab === 'accounts' && (
           <AdminAccounts 
             adminAccounts={adminAccounts} 
@@ -212,6 +236,9 @@ const Admin = () => {
             openConfirmDialog={openConfirmDialog} 
           />
         )}
+        {activeTab === 'store_settings' && (
+  <AdminStoreSettings />
+)}
       </main>
 
       {/* Confirm Dialog */}

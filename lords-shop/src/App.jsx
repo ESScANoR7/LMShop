@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // 🔥 ДОДАНО useEffect
 
 // 📦 ОСНОВНІ БІБЛІОТЕКИ ТА РОУТИНГ
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -15,7 +15,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import AdminRoute from './components/AdminRoute';
 import ErrorBoundary from './components/ErrorBoundary'; 
-
+import ResetPassword from './pages/ResetPassword';
 // 🛍️ ОСНОВНІ СТОРІНКИ МАГАЗИНУ ТА ПРОФІЛЮ
 import Home from './pages/Home';
 import Resources from './pages/Resources';
@@ -38,6 +38,16 @@ import EditAccount from './pages/EditAccount';
 import SHARINGAN from './pages/SHARINGAN';
 
 function App() {
+  
+  // 🔥 ЛОВИМО РЕФЕРАЛЬНЕ ПОСИЛАННЯ ПРИ ВХОДІ НА САЙТ 🔥
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('refCode', ref); // Зберігаємо код у пам'ять браузера
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -45,7 +55,7 @@ function App() {
           <WishlistProvider>
             <CompareProvider>
               <BrowserRouter>
-                <div className="min-h-screen bg-slate-950 flex flex-col">
+                <div className="min-h-screen bg-zinc-950 flex flex-col">
                   <Header />
                 
                 <Toaster 
@@ -70,6 +80,8 @@ function App() {
                     <Route path="/accounts" element={<Accounts />} />
                     <Route path="/accounts/:id" element={<AccountDetails />} />
                     <Route path="/sapphires" element={<Sapphires />} />
+                    
+                    <Route path="/reset-password" element={<ResetPassword />} />
                     
                     <Route path="/cart" element={<Cart />} />
                     <Route path="/profile" element={<Profile />} />
