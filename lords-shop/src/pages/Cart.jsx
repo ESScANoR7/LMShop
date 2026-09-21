@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, ShoppingCart, CreditCard, Wallet, Landmark, ShieldAlert, Ticket, X, CheckCircle2, Gift, Percent, BadgeDollarSign, Coins, Moon } from 'lucide-react'; 
+import { Trash2, ShoppingCart, ShieldAlert, Ticket, X, CheckCircle2, Gift, Percent, BadgeDollarSign, Coins, Moon, MessageCircle } from 'lucide-react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiGet, apiPost, handleApiError } from '../config/apiClient';
@@ -20,14 +20,13 @@ const Cart = () => {
   const { user, isLoggedIn, updateBalance } = useAuth(); 
   const navigate = useNavigate();
 
-  const [paymentMethod, setPaymentMethod] = useState('crypto');
+  // 🔥 Замість 'crypto' тепер використовуємо універсальний 'p2p' (ручна оплата)
+  const [paymentMethod, setPaymentMethod] = useState('p2p');
   const [promoInput, setPromoInput] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
-  // Стейт для Офлайн-режиму
   const [storeStatus, setStoreStatus] = useState({ is_offline: false, offline_categories: [], offline_message: '' });
 
-  // 🔥 ЛОКАЛЬНА ТА ПРАВИЛЬНА МАТЕМАТИКА КОШИКА 🔥
   const [localSubtotal, setLocalSubtotal] = useState(0);
   const [localDiscount, setLocalDiscount] = useState(0);
   const [localTotal, setLocalTotal] = useState(0);
@@ -59,11 +58,9 @@ const Cart = () => {
         const isTargeted = appliedPromo.target_items?.includes(itemIdStr);
         const isGlobal = !appliedPromo.target_items || appliedPromo.target_items.length === 0;
 
-        // 🔥 ЯКЩО ПРОМОКОД ДЛЯ ГІЛЬДІЇ - ВІДДАЄМО ЗА СОБІВАРТІСТЮ 🔥
         if (appliedPromo.target === 'guild') {
           disc += (iPrice - iBase);
         } 
-        // ЯКЩО ЗВИЧАЙНИЙ ПРОМОКОД
         else if (isTargeted || isGlobal) {
           if (appliedPromo.type === 'percent') {
             disc += iPrice * (parseFloat(appliedPromo.value) / 100);
@@ -74,7 +71,6 @@ const Cart = () => {
       }
     });
 
-    // Глобальна фіксована знижка на весь кошик
     if (appliedPromo && appliedPromo.type === 'fixed' && (!appliedPromo.target_items || appliedPromo.target_items.length === 0) && appliedPromo.target !== 'guild') {
       disc = parseFloat(appliedPromo.value);
     }
@@ -88,17 +84,18 @@ const Cart = () => {
   }, [cart, appliedPromo]);
 
   const hasAccountInCart = cart.some(item => item.type === 'account');
+  const isTopupCart = cart.some(item => item.type === 'topup');
 
-  // Автоматичний вибір оплати
+  // 🔥 ОНОВЛЕНА АВТОВИБІРКА ОПЛАТИ 🔥
   useEffect(() => {
-    if (isLoggedIn && user && user.balance >= localTotal && localTotal > 0 && !hasAccountInCart) {
+    // Якщо юзер має достатньо грошей, і це не акаунт, і не поповнення балансу
+    if (isLoggedIn && user && user.balance >= localTotal && localTotal > 0 && !hasAccountInCart && !isTopupCart) {
       setPaymentMethod('balance');
-    } else if (hasAccountInCart) {
-      setPaymentMethod('crypto');
+    } else {
+      setPaymentMethod('p2p');
     }
-  }, [hasAccountInCart, isLoggedIn, user, localTotal]);
+  }, [hasAccountInCart, isTopupCart, isLoggedIn, user, localTotal]);
 
-  // Завантаження статусу магазину
   useEffect(() => {
     const fetchStoreStatus = async () => {
       try {
@@ -179,10 +176,12 @@ const Cart = () => {
       }
     }
 
-    // 🔥 ДОДАЄМО PROMO_CODE ДЛЯ БЕКЕНДУ 🔥
+    // Відправляємо зрозумілу назву методу в базу даних (замість p2p відправимо Ручна Оплата)
+    const backendPaymentMethod = paymentMethod === 'balance' ? 'balance' : 'Оплата в чаті';
+
     const orderData = {
       cart: cartForTelegram,
-      paymentMethod: paymentMethod,
+      paymentMethod: backendPaymentMethod,
       total: localTotal.toFixed(2),
       profit: localProfit.toFixed(2),
       user_id: user?.id || null,
@@ -191,18 +190,19 @@ const Cart = () => {
 
     const toastId = toast.loading(t('cart.sending'));
     try {
-      await apiPost(getFullUrl(API_ENDPOINTS.CHECKOUT), orderData);
+      const response = await apiPost(getFullUrl(API_ENDPOINTS.CHECKOUT), orderData);
 
       if (paymentMethod === 'balance') {
         updateBalance(user.balance - localTotal);
         toast.success(t('cart.successBalance', { amount: localTotal.toFixed(2) }), { id: toastId });
       } else {
-        toast.success(t('cart.successCrypto', { method: paymentMethod.toUpperCase() }), { id: toastId });
+        toast.success('Замовлення створено! Переходимо в чат для отримання реквізитів...', { id: toastId, duration: 4000 });
       }
 
       if (appliedPromo) localStorage.setItem(`used_promo_${appliedPromo.code}`, 'true');
       clearCart();
-      navigate('/profile'); 
+      
+      navigate('/profile?tab=orders'); 
     } catch (error) {
       handleApiError(error, t('cart.checkoutErr'));
       toast.dismiss(toastId);
@@ -214,7 +214,6 @@ const Cart = () => {
 
     let icon, title, description;
 
-    // 🔥 ЯКЩО ПРОМОКОД ДЛЯ ГІЛЬДІЇ 🔥
     if (appliedPromo.target === 'guild') {
       icon = <ShieldAlert className="w-5 h-5 text-amber-400" />;
       title = `🛡️ ГІЛЬДІЯ: ${appliedPromo.target_names?.[0] || 'Для своїх'}`;
@@ -275,12 +274,11 @@ const Cart = () => {
     );
   };
 
-  // 🔥 ОБНУЛЕННЯ КЕШБЕКУ ЯКЩО ГІЛЬДІЯ 🔥
   const pendingCashback = appliedPromo?.target === 'guild' ? "0.00" : calculatePendingCashback();
 
   return (
     <div className="pb-20 pt-8 max-w-6xl mx-auto px-4 min-h-[80vh]">
-      <h1 className="text-3xl font-bold text-white mb-8">{t('cart.title')}</h1>
+      <h1 className="text-3xl font-bold text-white mb-8">{t('cart.title', 'Оформлення замовлення')}</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-4">
@@ -307,17 +305,15 @@ const Cart = () => {
               const isTargeted = appliedPromo && appliedPromo.target_items && appliedPromo.target_items.includes(`${prefix}${item.product.id}`);
               const isGlobal = appliedPromo && (!appliedPromo.target_items || appliedPromo.target_items.length === 0);
               
-              // Чи діє знижка на цей конкретний товар
               const hasActiveDiscount = (isTargeted || isGlobal || appliedPromo?.target === 'guild') && appliedPromo;
 
-              // Рахуємо ціну для відображення
               const iPrice = parseFloat(item.price || 0);
               const iBase = parseFloat(item.product?.base_price || item.base_price || iPrice);
               let discountedItemPrice = iPrice;
 
               if (hasActiveDiscount) {
                 if (appliedPromo.target === 'guild') {
-                  discountedItemPrice = iBase; // Гільдія = Собівартість
+                  discountedItemPrice = iBase; 
                 } else if (appliedPromo.type === 'percent') {
                   discountedItemPrice = iPrice - (iPrice * parseFloat(appliedPromo.value) / 100);
                 } else if (appliedPromo.type === 'fixed' && !isGlobal) {
@@ -370,7 +366,6 @@ const Cart = () => {
         <div className="lg:col-span-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 sticky top-24">
             
-            {/* ПЛАШКА ОФЛАЙН РЕЖИМУ */}
             {hasOfflineItems && (
               <div className="mb-6 bg-gradient-to-r from-amber-900/40 to-orange-900/20 border border-amber-500/50 rounded-2xl p-5 shadow-[0_0_15px_rgba(245,158,11,0.1)] flex items-start gap-4 animate-in fade-in slide-in-from-top-2">
                 <div className="bg-amber-500/20 p-2.5 rounded-xl flex-shrink-0">
@@ -388,42 +383,70 @@ const Cart = () => {
               </div>
             )}
 
-            <h2 className="text-xl font-bold text-white mb-6">{t('cart.paymentTitle')}</h2>
+            <h2 className="text-xl font-bold text-white mb-6">Спосіб оплати</h2>
             
-            {hasAccountInCart && (
-              <div className="mb-6 p-4 bg-amber-900/20 border border-amber-500/30 rounded-xl flex gap-3">
-                <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                <p className="text-xs text-amber-400/90 leading-relaxed">
-                  {t('cart.accountWarning')} <strong className="text-amber-400 font-bold">{t('cart.accountWarningBold')}</strong>.
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-2 mb-8">
-              {isLoggedIn && user && !hasAccountInCart && (
-                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'balance' ? 'bg-amber-900/20 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-slate-800 border-slate-700 hover:border-slate-500'}`}>
-                  <input type="radio" name="payment" value="balance" checked={paymentMethod === 'balance'} onChange={() => setPaymentMethod('balance')} className="hidden" />
-                  <Coins className={`w-5 h-5 ${paymentMethod === 'balance' ? 'text-amber-400' : 'text-slate-500'}`} />
-                  <div className="flex-1">
-                    <div className={`text-sm font-bold ${paymentMethod === 'balance' ? 'text-amber-400' : 'text-slate-300'}`}>{t('cart.balanceMethod')}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{t('cart.balanceAvailable', { amount: user.balance?.toFixed(2) })}</div>
+            <div className="space-y-3 mb-8">
+              
+              {/* 🔥 ОПЦІЯ 1: БАЛАНС 🔥 */}
+              <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                (!isLoggedIn || !user || user.balance < localTotal || hasAccountInCart || isTopupCart) 
+                  ? 'opacity-50 cursor-not-allowed bg-slate-900 border-slate-800 text-slate-600' 
+                  : paymentMethod === 'balance' 
+                    ? 'bg-amber-900/20 border-amber-500 cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.15)]' 
+                    : 'bg-slate-800 border-slate-700 hover:border-slate-500 cursor-pointer'
+              }`}>
+                <input 
+                  type="radio" 
+                  name="payment" 
+                  value="balance" 
+                  disabled={!isLoggedIn || !user || user.balance < localTotal || hasAccountInCart || isTopupCart} 
+                  checked={paymentMethod === 'balance'} 
+                  onChange={() => setPaymentMethod('balance')} 
+                  className="hidden" 
+                />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border ${paymentMethod === 'balance' ? 'bg-amber-500 border-amber-400 text-slate-900 shadow-lg' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                  <Coins className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`font-black text-base truncate ${paymentMethod === 'balance' ? 'text-amber-400' : 'text-slate-300'}`}>
+                    Оплата з балансу (Монети)
                   </div>
-                  {paymentMethod === 'balance' && <CheckCircle2 className="w-5 h-5 text-amber-500" />}
-                </label>
-              )}
-
-              <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'crypto' ? 'bg-blue-900/20 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                <input type="radio" name="payment" value="crypto" checked={paymentMethod === 'crypto'} onChange={() => setPaymentMethod('crypto')} className="hidden" />
-                <Wallet className={`w-5 h-5 ${paymentMethod === 'crypto' ? 'text-blue-400' : 'text-slate-500'}`} />
-                <div className="flex-1"><div className="text-sm font-bold">{t('cart.cryptoMethod')}</div></div>
-                {paymentMethod === 'crypto' && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                  <div className="text-xs text-slate-500 font-medium mt-0.5">
+                    {user ? `Доступно: ${user.balance?.toFixed(2)} USDT` : 'Потрібна авторизація'}
+                    {user && user.balance < localTotal && <span className="text-red-400 ml-1">(Недостатньо)</span>}
+                    {hasAccountInCart && <span className="text-amber-500/80 ml-1">(Не для акаунтів)</span>}
+                    {isTopupCart && <span className="text-amber-500/80 ml-1">(Поповнення)</span>}
+                  </div>
+                </div>
+                {paymentMethod === 'balance' && <CheckCircle2 className="w-6 h-6 text-amber-500 flex-shrink-0 ml-2" />}
               </label>
 
-              <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${hasAccountInCart ? 'opacity-50 cursor-not-allowed bg-slate-900 border-slate-800 text-slate-600' : paymentMethod === 'card' ? 'bg-blue-900/20 border-blue-500 text-white cursor-pointer' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 cursor-pointer'}`}>
-                <input type="radio" name="payment" value="card" disabled={hasAccountInCart} checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="hidden" />
-                <CreditCard className={`w-5 h-5 ${paymentMethod === 'card' ? 'text-blue-400' : 'text-slate-500'}`} />
-                <div className="flex-1"><div className="text-sm font-bold">{t('cart.cardMethod')}</div></div>
-                {paymentMethod === 'card' && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+              {/* 🔥 ОПЦІЯ 2: ПРЯМА ОПЛАТА В ЧАТІ 🔥 */}
+              <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                paymentMethod === 'p2p' 
+                  ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]' 
+                  : 'bg-slate-800 border-slate-700 hover:border-slate-500'
+              }`}>
+                <input 
+                  type="radio" 
+                  name="payment" 
+                  value="p2p" 
+                  checked={paymentMethod === 'p2p'} 
+                  onChange={() => setPaymentMethod('p2p')} 
+                  className="hidden" 
+                />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border ${paymentMethod === 'p2p' ? 'bg-blue-500 border-blue-400 text-white shadow-lg' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                  <MessageCircle className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`font-black text-base truncate ${paymentMethod === 'p2p' ? 'text-white' : 'text-slate-300'}`}>
+                    Чат з Адміністратором
+                  </div>
+                  <div className="text-xs text-slate-500 font-medium mt-0.5 leading-relaxed">
+                    Пряма оплата (Крипта / Карта) після оформлення.
+                  </div>
+                </div>
+                {paymentMethod === 'p2p' && <CheckCircle2 className="w-6 h-6 text-blue-500 flex-shrink-0 ml-2" />}
               </label>
             </div>
 
@@ -480,9 +503,19 @@ const Cart = () => {
             <button 
               onClick={handleCheckout} 
               disabled={cart.length === 0} 
-              className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all ${cart.length === 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : paymentMethod === 'balance' ? 'bg-amber-600 hover:bg-amber-500 text-slate-950 hover:scale-[1.02] active:scale-[0.98]' : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-[1.02] active:scale-[0.98]'}`}
+              className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                cart.length === 0 
+                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                  : paymentMethod === 'balance' 
+                    ? 'bg-amber-600 hover:bg-amber-500 text-slate-950 hover:scale-[1.02] active:scale-[0.98]' 
+                    : 'bg-blue-600 hover:bg-blue-500 text-white hover:scale-[1.02] active:scale-[0.98]'
+              }`}
             >
-              {cart.length === 0 ? t('cart.empty') : paymentMethod === 'balance' ? t('cart.payBalanceBtn') : t('cart.orderBtn')}
+              {cart.length === 0 
+                ? t('cart.empty') 
+                : paymentMethod === 'balance' 
+                  ? 'Сплатити з балансу' 
+                  : 'Створити тікет на оплату'}
             </button>
           </div>
         </div>

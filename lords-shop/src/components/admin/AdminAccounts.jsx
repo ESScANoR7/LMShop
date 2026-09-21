@@ -9,7 +9,6 @@ import {
 import { apiPost, apiPut, apiDelete, handleApiError } from '../../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../../config/api';
 
-// 🔥 ВИПРАВЛЕННЯ: Компоненти винесені назовні, щоб інпути не втрачали фокус 🔥
 const StatInputField = ({ label, fieldKey, placeholder, accStats, updateStat, colorMode }) => {
   const isGreen = colorMode === 'leader';
   return (
@@ -46,6 +45,8 @@ const SingleStatInput = ({ label, fieldKey, placeholder, accStats, updateStat })
 const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   const { t } = useTranslation();
 
+  const [editingAccountId, setEditingAccountId] = useState(null); // 🔥 НОВИЙ СТЕЙТ ДЛЯ РЕДАГУВАННЯ
+
   const [accountFormLng, setAccountFormLng] = useState('ua');
   const [sellerPrice, setSellerPrice] = useState('');
   const [markup, setMarkup] = useState('');
@@ -66,7 +67,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
 
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // 🔥 СТАТИ 🔥
   const [statMode, setStatMode] = useState('leader');
 
   const initialStats = {
@@ -90,27 +90,16 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   };
 
   const [accStats, setAccStats] = useState(initialStats);
-  
-  // 🔥 КАСТОМНІ ПОЛЯ ІНВЕНТАРЮ 🔥
   const [customFields, setCustomFields] = useState([]);
 
-  const addCustomField = () => {
-    setCustomFields([...customFields, { label: '', value: '' }]);
-  };
-
+  const addCustomField = () => setCustomFields([...customFields, { label: '', value: '' }]);
   const updateCustomField = (index, key, newValue) => {
     const updatedFields = [...customFields];
     updatedFields[index][key] = newValue;
     setCustomFields(updatedFields);
   };
-
-  const removeCustomField = (index) => {
-    setCustomFields(customFields.filter((_, i) => i !== index));
-  };
-
-  const updateStat = (key, value) => {
-    setAccStats(prev => ({ ...prev, [key]: value }));
-  };
+  const removeCustomField = (index) => setCustomFields(customFields.filter((_, i) => i !== index));
+  const updateStat = (key, value) => setAccStats(prev => ({ ...prev, [key]: value }));
 
   const handleMainImageUpload = (e) => {
     const file = e.target.files[0];
@@ -139,12 +128,66 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   };
 
   const clearForm = () => {
+    setEditingAccountId(null);
     setAccTitle(''); setAccShortDesc(''); setSellerPrice(''); setMarkup('');
     setAccTags(''); setAccBind('');
     setMainImageFile(null); setMainImagePreview(null);
     setAdditionalFiles([]); setAdditionalPreviews([]);
     setAccStats(initialStats);
-    setCustomFields([]); // Очищуємо кастомні поля
+    setCustomFields([]); 
+  };
+
+  // 🔥 ФУНКЦІЯ ДЛЯ ЗАВАНТАЖЕННЯ АКАУНТА У ФОРМУ 🔥
+  const handleEditClick = (acc) => {
+    setEditingAccountId(acc.id);
+    setAccTitle(acc.title);
+    setAccShortDesc(acc.shortDesc);
+    setSellerPrice(acc.base_price || acc.price);
+    setAccTags(acc.tags ? acc.tags.join(', ') : '');
+    setAccBind(acc.bind);
+
+    if (acc.stats) {
+      const s = acc.stats;
+      setAccStats({
+        mix_atk_leader: s.mix_atk?.leader || '', mix_atk_base: s.mix_atk?.base || '',
+        mono_atk_leader: s.mono_atk?.leader || '',
+        army_mix_atk_leader: s.army_mix_atk?.leader || '', army_mix_atk_base: s.army_mix_atk?.base || '',
+        army_mono_atk_leader: s.army_mono_atk?.leader || '',
+        
+        mix_def_leader: s.mix_def?.leader || '', mix_def_base: s.mix_def?.base || '',
+        mono_def_leader: s.mono_def?.leader || '',
+        army_mix_def_leader: s.army_mix_def?.leader || '', army_mix_def_base: s.army_mix_def?.base || '',
+        army_mono_def_leader: s.army_mono_def?.leader || '',
+        
+        mix_hp_leader: s.mix_hp?.leader || '', mix_hp_base: s.mix_hp?.base || '',
+        mono_hp_leader: s.mono_hp?.leader || '',
+        army_mix_hp_leader: s.army_mix_hp?.leader || '', army_mix_hp_base: s.army_mix_hp?.base || '',
+        army_mono_hp_leader: s.army_mono_hp?.leader || '',
+        
+        castle: s.castle || '',
+        blessed: s.blessed || '',
+        champ_gear: s.champ_gear || '',
+        heroes: s.heroes || '',
+        familiars: s.familiars || '',
+        artifacts: s.artifacts || '',
+        attribute_lvl: s.attribute_lvl || '',
+        max_kd: s.max_kd || ''
+      });
+      if (s.custom_inventory) setCustomFields(s.custom_inventory);
+    }
+
+    if (acc.images && acc.images.length > 0) {
+      setMainImagePreview(acc.images[0]);
+      setAdditionalPreviews(acc.images.slice(1));
+    } else {
+      setMainImagePreview(null);
+      setAdditionalPreviews([]);
+    }
+    
+    setMainImageFile(null);
+    setAdditionalFiles([]);
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Скролимо сторінку вгору до форми
   };
 
   let finalPriceAcc = 0;
@@ -155,7 +198,11 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
 
   const handlePublishAccount = async () => {
     if (!accTitle || !sellerPrice) return toast.error(t('common.error'));
-    if (!mainImageFile && additionalFiles.length === 0) return toast.error('Додайте хоча б одне фото!');
+    
+    // Перевірка фото потрібна тільки якщо створюємо новий акаунт
+    if (!editingAccountId && !mainImageFile && additionalFiles.length === 0) {
+      return toast.error('Додайте хоча б одне фото!');
+    }
 
     setIsPublishing(true);
     const toastId = toast.loading('Обробка та збереження акаунта...');
@@ -193,21 +240,24 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
         artifacts: accStats.artifacts,
         attribute_lvl: accStats.attribute_lvl,
         max_kd: accStats.max_kd,
-        
-        // 🔥 ДОДАЄМО КАСТОМНІ ПОЛЯ 🔥
         custom_inventory: customFields.filter(field => field.label.trim() !== '')
       };
 
       formData.append('stats', JSON.stringify(structuredStats));
 
       if (mainImageFile) formData.append('images', mainImageFile);
-      additionalFiles.forEach(file => {
-        formData.append('images', file);
-      });
+      additionalFiles.forEach(file => formData.append('images', file));
 
-      await apiPost(getFullUrl(API_ENDPOINTS.ACCOUNT_CREATE), formData);
+      if (editingAccountId) {
+        // Оновлюємо існуючий
+        await apiPut(getFullUrl(`/api/accounts/${editingAccountId}`), formData);
+        toast.success('Акаунт оновлено!', { id: toastId });
+      } else {
+        // Створюємо новий
+        await apiPost(getFullUrl(API_ENDPOINTS.ACCOUNT_CREATE), formData);
+        toast.success(t('common.success'), { id: toastId });
+      }
       
-      toast.success(t('common.success'), { id: toastId });
       fetchAccounts();
       clearForm();
     } catch (error) {
@@ -257,15 +307,29 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg">
-        <div><h1 className="text-2xl font-bold text-white mb-1">{t('admin.accounts.title')}</h1></div>
-        <button
-          onClick={handlePublishAccount}
-          disabled={isPublishing}
-          className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/20 hover:-translate-y-1"
-        >
-          {isPublishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {isPublishing ? t('common.loading') : t('admin.accounts.publishBtn')}
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">
+            {editingAccountId ? `Редагування Акаунта #${editingAccountId}` : t('admin.accounts.title')}
+          </h1>
+        </div>
+        <div className="flex gap-3">
+          {editingAccountId && (
+            <button
+              onClick={clearForm}
+              className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all"
+            >
+              Скасувати
+            </button>
+          )}
+          <button
+            onClick={handlePublishAccount}
+            disabled={isPublishing}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/20 hover:-translate-y-1"
+          >
+            {isPublishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isPublishing ? t('common.loading') : (editingAccountId ? 'Зберегти зміни' : t('admin.accounts.publishBtn'))}
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -348,7 +412,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
               </div>
             </div>
 
-            {/* ATK */}
             <div className="mb-6">
               <h4 className="text-[11px] uppercase tracking-widest font-black text-rose-500 mb-3 flex items-center gap-1"><Swords className="w-4 h-4"/> Атака Військ (ATK)</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -368,7 +431,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
               </div>
             </div>
 
-            {/* DEF */}
             <div className="mb-6">
               <h4 className="text-[11px] uppercase tracking-widest font-black text-blue-500 mb-3 flex items-center gap-1"><ShieldCheck className="w-4 h-4"/> Захист Військ (DEF)</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -388,7 +450,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
               </div>
             </div>
 
-            {/* HP */}
             <div className="mb-6">
               <h4 className="text-[11px] uppercase tracking-widest font-black text-emerald-500 mb-3 flex items-center gap-1"><Heart className="w-4 h-4"/> Здоров'я Військ (HP)</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -408,7 +469,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
               </div>
             </div>
 
-            {/* INVENTORY */}
             <div className="mt-8 border-t border-slate-800 pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-[11px] uppercase tracking-widest font-black text-purple-400 flex items-center gap-1">
@@ -432,7 +492,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
                 <SingleStatInput label="Рівень Атрибута" fieldKey="attribute_lvl" placeholder="10" accStats={accStats} updateStat={updateStat} />
                 <SingleStatInput label="Max KD (Королівство)" fieldKey="max_kd" placeholder="1250" accStats={accStats} updateStat={updateStat} />
                 
-                {/* КАСТОМНІ ПОЛЯ */}
                 {customFields.map((field, idx) => (
                   <div key={idx} className="bg-slate-900/80 p-3 rounded-xl border border-blue-700/50 relative group shadow-sm shadow-blue-900/10">
                     <button 
@@ -442,7 +501,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
                     >
                       <X className="w-3 h-3" />
                     </button>
-                    
                     <input 
                       type="text"
                       placeholder="Назва (напр. EMP шмотка)"
@@ -450,7 +508,6 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
                       onChange={(e) => updateCustomField(idx, 'label', e.target.value)}
                       className="w-[85%] bg-transparent text-[11px] font-bold text-blue-400 mb-2 uppercase tracking-wider outline-none border-b border-transparent focus:border-blue-500/50 pb-0.5 transition-colors placeholder:text-blue-900"
                     />
-                    
                     <input 
                       type="text"
                       placeholder="Значення (напр. 3 шт)"
@@ -584,9 +641,13 @@ const AdminAccounts = ({ adminAccounts, fetchAccounts, openConfirmDialog }) => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Link to={`/admin/edit-account/${acc.id}`} className="flex-1 py-2 bg-slate-700 hover:bg-blue-600 text-white text-xs font-bold rounded-lg flex justify-center items-center gap-1 transition-colors">
+                  {/* 🔥 ТУТ КНОПКА ЗАМІСТЬ ПОСИЛАННЯ 🔥 */}
+                  <button 
+                    onClick={() => handleEditClick(acc)} 
+                    className="flex-1 py-2 bg-slate-700 hover:bg-blue-600 text-white text-xs font-bold rounded-lg flex justify-center items-center gap-1 transition-colors"
+                  >
                     <Edit className="w-3 h-3" /> {t('admin.accounts.editBtn')}
-                  </Link>
+                  </button>
                   <button onClick={() => handleDeleteAccount(acc.id)} className="p-2 bg-slate-700 hover:bg-red-500 text-white rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>

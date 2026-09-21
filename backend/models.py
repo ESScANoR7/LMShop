@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey,Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from database import Base
 from datetime import datetime
+
 
 
 # ==========================================
@@ -25,7 +26,7 @@ class UserDB(Base):
 
     #  НОВЕ ПОЛЕ ДЛЯ ОСОБИСТИХ СПОВІЩЕНЬ
     telegram_chat_id = Column(String, nullable=True)
-
+language = Column(String(5), default="en", nullable=False)
 
 # ==========================================
 # ⚙️ НАЛАШТУВАННЯ КЕШБЕКУ (З АДМІНКИ)
@@ -111,6 +112,7 @@ class OrderDB(Base):
     payment_method = Column(String)
     total = Column(String)
     profit = Column(String, default="0")
+    # 🔥 СТАТУСИ ТЕПЕР: new, awaiting_payment, paid_processing, delivered, completed, cancelled
     status = Column(String, default="new")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -124,3 +126,69 @@ class NotificationDB(Base):
     type = Column(String, default="info") # 'success', 'warning', 'info'
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==========================================
+# 💬 ЧАТИ ЗАМОВЛЕНЬ (ТІКЕТИ ТА РЕКВІЗИТИ)
+# ==========================================
+class TicketMessageDB(Base):
+    __tablename__ = "ticket_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), index=True) # Прив'язка до конкретного замовлення
+    sender = Column(String)  # 'admin' або 'user' (щоб фронтенд розумів, з якого боку малювати бульбашку чату)
+    text = Column(String)
+    is_secret = Column(Boolean, default=False)  # Якщо True - це реквізити адміна, в чек не потраплять
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
+# ==========================================
+# 🗄️ НОВІ МОДЕЛІ (АВТОБУХГАЛТЕРІЯ ТА РЕФЕРАЛКА)
+# ==========================================
+# 🔥 Виправив (models.Base) на просто (Base)
+
+class WorkerAccountingDB(Base):
+    __tablename__ = "worker_accounting"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    worker_name = Column(String, unique=True, index=True)
+    current_unpaid = Column(Float, default=0.0)
+    total_paid = Column(Float, default=0.0)
+
+class OrderAssignmentDB(Base):
+    __tablename__ = "order_assignments"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, unique=True, index=True)
+    worker_name = Column(String)
+    cost_amount = Column(Float, default=0.0)
+    is_credited = Column(Boolean, default=False)
+
+class ReferralSettingsDB(Base):
+    __tablename__ = "referral_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    percent = Column(Float, default=5.0)
+    is_active = Column(Boolean, default=True)
+
+class OrderTopicDB(Base):
+    __tablename__ = "order_topics"
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, unique=True, index=True)
+    topic_id = Column(Integer, index=True)
+
+class StorefrontMessageDB(Base):
+    __tablename__ = "storefront_messages"
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer, primary_key=True, index=True)
+    item_group = Column(String, index=True)
+    item_id = Column(Integer, index=True)
+    message_id = Column(Integer)
+
+
+

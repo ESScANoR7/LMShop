@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Package, LogOut, KeyRound, Coins, Mail, Lock, Camera, Settings, Shield, CheckCircle2, XCircle, ArrowRight, Loader2, Clock, Check, ShieldCheck, Eye, EyeOff, Heart, CreditCard, Users, Bell, Gift, Smartphone, Send, Monitor, Copy, ChevronDown, ChevronUp, Plus, ShoppingCart, Trash2, CheckCheck, AlertTriangle, Menu, X, Truck, MessageCircle, HelpCircle, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext'; 
@@ -36,7 +36,7 @@ const ValidationMessage = ({ value, minLength, isPasswordConfirm, matchValue, t 
       </div>
     );
   }
-  
+
   return (
     <div className="text-amber-500 text-[11px] mt-1.5 flex items-center gap-1.5 font-bold animate-in fade-in slide-in-from-top-1">
       <CheckCircle2 className="w-3.5 h-3.5"/> {t('profile.validation.perfect', 'Відмінно!')}
@@ -50,17 +50,26 @@ const Profile = () => {
   const { wishlist, removeFromWishlist } = useWishlist(); 
   const { addToCart } = useCart(); 
   const navigate = useNavigate();
-  
+
   const [isLoginView, setIsLoginView] = useState(true);
-  
-  // 🔥 СТАНИ ДЛЯ ВІДНОВЛЕННЯ ПАРОЛЯ 🔥
   const [isForgotView, setIsForgotView] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
 
-  const [activeTab, setActiveTab] = useState('settings');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'settings';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLinkingTg, setIsLinkingTg] = useState(false); 
+  const [telegramId, setTelegramId] = useState(null); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // 🔥 Захист від старих даних у таймері (Stale Closures) 🔥
+  const userRef = useRef(user);
+  const tgRef = useRef(telegramId);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { tgRef.current = telegramId; }, [telegramId]);
 
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [profileForm, setProfileForm] = useState({ username: '', telegram: '', discord: '' });
@@ -83,6 +92,11 @@ const Profile = () => {
 
   const [refData, setRefData] = useState({ count: 0, earnings: 0, list: [], isLoading: false });
 
+  // СТЕЙТИ ДЛЯ ЧАТУ
+  const [chatData, setChatData] = useState({});
+  const [chatInputs, setChatInputs] = useState({});
+  const [isChatLoading, setIsChatLoading] = useState({});
+
   useEffect(() => {
     if (user) setProfileForm(prev => ({ ...prev, username: user.username }));
   }, [user]);
@@ -94,36 +108,138 @@ const Profile = () => {
     }
   }, [isLoggedIn, user?.id, activeTab]); 
 
+  // 🔥 ГОЛОВНИЙ СИНХРОНІЗАТОР (КОЖНІ 3 СЕК) 🔥
   useEffect(() => {
-    if (isLoggedIn && activeTab === 'orders') fetchMyOrders();
-    if (isLoggedIn && activeTab === 'referrals') fetchReferrals();
-  }, [isLoggedIn, activeTab, user]);
+    let interval;
+    if (isLoggedIn && user?.id) {
+      interval = setInterval(() => {
+        fetchUserData(true);
+        if (activeTab === 'orders') fetchMyOrders(true);
+        if (expandedOrderId) fetchChat(expandedOrderId, true); 
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isLoggedIn, user?.id, activeTab, expandedOrderId]);
 
-  const fetchUserData = async () => {
+  // ==========================================
+  // 🔥 ФУНКЦІЇ ТЕЛЕГРАМУ (ПРИВ'ЯЗКА ТА ВІДВ'ЯЗКА)
+  // ==========================================
+  const handleLinkTelegram = async () => {
+    setIsLinkingTg(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/users/${user.id}`);
+      const res = await fetch('http://localhost:8000/api/telegram/get-link', {
+        method: 'GET',
+        credentials: 'include'
+      });
       const data = await res.json();
-      if (data.balance !== undefined && data.balance !== user.balance) {
+
+      if (res.ok && data.link) {
+        window.open(data.link, '_blank');
+        toast.success("Перейдіть у Telegram та натисніть Start!");
+      } else {
+        toast.error(t('common.error', 'Помилка отримання посилання'));
+      }
+    } catch (err) {
+      toast.error(t('common.error', 'Помилка сервера'));
+    } finally {
+      setIsLinkingTg(false);
+    }
+  };
+
+  const handleUnlinkTelegram = async () => {
+    setIsLinkingTg(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/users/${user.id}/unlink-telegram`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        setTelegramId(null);
+        toast.success("Акаунт Telegram успішно відв'язано!");
+      } else {
+        toast.error("Помилка відв'язування");
+      }
+    } catch (err) {
+      toast.error(t('common.error', 'Помилка сервера'));
+    } finally {
+      setIsLinkingTg(false);
+    }
+  };
+
+  const fetchChat = async (orderId, silent = false) => {
+    if (!silent) setIsChatLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const res = await fetch(`http://localhost:8000/api/orders/${orderId}/chat?t=${Date.now()}`, { 
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChatData(prev => ({ ...prev, [orderId]: data }));
+      }
+    } catch (err) { console.error(err); }
+    if (!silent) setIsChatLoading(prev => ({ ...prev, [orderId]: false }));
+  };
+
+  const handleSendMessage = async (orderId) => {
+    const text = chatInputs[orderId];
+    if (!text?.trim()) return;
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/orders/${orderId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: text, is_secret: false })
+      });
+      if (res.ok) {
+        setChatInputs(prev => ({ ...prev, [orderId]: '' }));
+        fetchChat(orderId);
+      } else {
+        toast.error("Помилка відправки");
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchUserData = async (silent = false) => {
+    if (!userRef.current?.id) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/users/${userRef.current.id}?t=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      const data = await res.json();
+      
+      // Оновлюємо баланс, тільки якщо він реально змінився
+      if (data.balance !== undefined && data.balance !== userRef.current.balance) {
         updateBalance(data.balance); 
+      }
+      
+      // Оновлюємо ТГ, тільки якщо він змінився
+      if (data.telegram !== undefined && data.telegram !== tgRef.current) {
+        setTelegramId(data.telegram); 
       }
     } catch (err) { console.error(err); }
   };
 
-  const fetchMyOrders = async () => {
-    setIsLoadingOrders(true);
+  const fetchMyOrders = async (silent = false) => {
+    if (!silent) setIsLoadingOrders(true);
     try {
-      const response = await fetch('http://localhost:8000/api/orders', { credentials: 'include' });
+      const response = await fetch(`http://localhost:8000/api/orders?t=${Date.now()}`, { 
+        credentials: 'include',
+        cache: 'no-store'
+      });
       if (response.ok) {
         const allOrders = await response.json();
-        setMyOrders(allOrders.filter(o => o.user_id === user.id));
+        setMyOrders(allOrders);
       }
-    } catch (error) {
-      console.error("Помилка завантаження замовлень");
-    }
-    setIsLoadingOrders(false);
+    } catch (error) { console.error("Помилка завантаження замовлень"); }
+    if (!silent) setIsLoadingOrders(false);
   };
 
   const fetchNotifications = async () => {
+    if (!user) return;
     try {
       const res = await fetch(`http://localhost:8000/api/users/${user.id}/notifications`);
       if (res.ok) setNotifications(await res.json());
@@ -131,6 +247,7 @@ const Profile = () => {
   };
 
   const fetchReferrals = async () => {
+    if (!user) return;
     setRefData(prev => ({ ...prev, isLoading: true }));
     try {
       const res = await fetch(`http://localhost:8000/api/users/${user.id}/referrals`, { credentials: 'include' });
@@ -145,10 +262,7 @@ const Profile = () => {
       } else {
         setRefData(prev => ({ ...prev, isLoading: false }));
       }
-    } catch (e) {
-      console.error("Помилка завантаження рефералів");
-      setRefData(prev => ({ ...prev, isLoading: false }));
-    }
+    } catch (e) { setRefData(prev => ({ ...prev, isLoading: false })); }
   };
 
   const handleConfirmDelivery = async (orderId) => {
@@ -158,11 +272,12 @@ const Profile = () => {
         credentials: 'include'
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         toast.success(data.message || t('common.success', 'Успішно підтверджено!'));
         setMyOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'completed' } : o));
         fetchUserData();
+        fetchChat(orderId, true); 
       } else {
         toast.error(data.detail || t('common.error', 'Помилка'));
       }
@@ -172,7 +287,7 @@ const Profile = () => {
   };
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const handleMobileTabClick = (tab) => { setActiveTab(tab); closeMobileMenu(); };
+  const handleMobileTabClick = (tab) => { setActiveTab(tab); closeMobileMenu(); navigate(`/profile?tab=${tab}`); };
   const handleMobileLogout = () => { logout(); closeMobileMenu(); navigate('/profile'); };
 
   const handleMarkAllAsRead = async () => {
@@ -257,13 +372,13 @@ const Profile = () => {
     if (!user) return;
     setIsSaving(true);
     let updateData = {};
-    
+
     if (type === 'username') {
       if (profileForm.username.length < 5) { toast.error(t('common.error')); setIsSaving(false); return; }
       if (profileForm.username === user.username) { toast("Нікнейм не змінився", { icon: "ℹ️" }); setIsSaving(false); return; }
       updateData = { username: profileForm.username };
     } 
-    
+
     if (type === 'password') {
       if (passwordForm.newPassword.length < 6) { toast.error(t('common.error')); setIsSaving(false); return; }
       if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast.error(t('profile.validation.passMismatch')); setIsSaving(false); return; }
@@ -287,11 +402,9 @@ const Profile = () => {
   const handleSavePaymentMethod = (method) => { setDefaultPayment(method); localStorage.setItem('defaultPayment', method); toast.success(t('common.success')); };
 
   // ==========================================
-  // ЕКРАН АВТОРИЗАЦІЇ / РЕЄСТРАЦІЇ / ВІДНОВЛЕННЯ
+  // ЕКРАН АВТОРИЗАЦІЇ
   // ==========================================
   if (!isLoggedIn) {
-    
-    // 🔥 ЕКРАН ВІДНОВЛЕННЯ ПАРОЛЯ 🔥
     if (isForgotView) {
       return (
         <div className="flex flex-col items-center justify-center py-12 px-4 max-w-md mx-auto min-h-[75vh]">
@@ -322,7 +435,6 @@ const Profile = () => {
       );
     }
 
-    // 🔥 ЕКРАН ЛОГІНУ / РЕЄСТРАЦІЇ 🔥
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 max-w-md mx-auto min-h-[75vh]">
         <div className="w-20 h-20 bg-red-900/30 text-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(220,38,38,0.2)] rotate-3">
@@ -382,7 +494,7 @@ const Profile = () => {
                 <input type="checkbox" className="hidden" checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
                 <span className="text-sm font-medium text-zinc-400 group-hover:text-white transition-colors">{t('profile.login.remember')}</span>
               </label>
-              
+
               <button type="button" onClick={() => setIsForgotView(true)} className="text-sm text-red-500 hover:text-red-400 font-bold transition-colors">
                 {t('profile.login.forgot')}
               </button>
@@ -410,8 +522,8 @@ const Profile = () => {
   // ==========================================
   return (
     <div className="pb-20 pt-8 max-w-6xl mx-auto px-4 min-h-[80vh]">
-      
-      {/* МОБІЛЬНИЙ COMPACT HEADER */}
+
+      {/* МОБІЛЬНИЙ HEADER */}
       <div className="lg:hidden mb-6 bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 flex-1">
@@ -474,12 +586,12 @@ const Profile = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* ЛІВА ПАНЕЛЬ: БІЧНЕ МЕНЮ (DESKTOP ONLY) */}
         <aside className="hidden lg:flex lg:col-span-3 flex-col gap-6 animate-in fade-in slide-in-from-left-8 duration-700">
           <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-red-500/10 rounded-full blur-[40px] group-hover:bg-amber-500/10 transition-colors"></div>
-            
+
             <div className="flex items-center gap-4 mb-6 relative z-10">
               <div className="w-16 h-16 bg-gradient-to-br from-amber-600 to-amber-800 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-lg border border-amber-500/30">
                 {user?.username?.charAt(0) || 'U'}
@@ -509,30 +621,28 @@ const Profile = () => {
           </div>
 
           <nav className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-4 shadow-xl flex flex-col gap-1.5">
-            <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'settings' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
+            <button onClick={() => {setActiveTab('settings'); navigate('?tab=settings');}} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'settings' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
               <Settings className="w-5 h-5" /> {t('profile.tabs.settings')}
             </button>
-            <button onClick={() => setActiveTab('security')} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'security' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
+            <button onClick={() => {setActiveTab('security'); navigate('?tab=security');}} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'security' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
               <Shield className="w-5 h-5" /> {t('profile.tabs.security')}
             </button>
-            <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'orders' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
+            <button onClick={() => {setActiveTab('orders'); navigate('?tab=orders');}} className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'orders' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
               <div className="flex items-center gap-3"><Package className="w-5 h-5" /> {t('profile.tabs.orders')}</div>
             </button>
-            <button onClick={() => setActiveTab('wishlist')} className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'wishlist' ? 'bg-zinc-800 border border-zinc-700 text-white shadow-md' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
+            <button onClick={() => {setActiveTab('wishlist'); navigate('?tab=wishlist');}} className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'wishlist' ? 'bg-zinc-800 border border-zinc-700 text-white shadow-md' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
               <div className="flex items-center gap-3"><Heart className="w-5 h-5 text-red-500" /> {t('profile.tabs.wishlist')}</div>
               {wishlist.length > 0 && <span className="bg-red-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black">{wishlist.length}</span>}
             </button>
-            <button onClick={() => setActiveTab('payment')} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'payment' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
-              <CreditCard className="w-5 h-5" /> {t('profile.tabs.payment')}
-            </button>
-            <button onClick={() => setActiveTab('referrals')} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'referrals' ? 'bg-amber-600 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
+            
+            <button onClick={() => {setActiveTab('referrals'); navigate('?tab=referrals');}} className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'referrals' ? 'bg-amber-600 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
               <Users className="w-5 h-5" /> {t('profile.tabs.referrals')}
             </button>
-            <button onClick={() => setActiveTab('notifications')} className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'notifications' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
+            <button onClick={() => {setActiveTab('notifications'); navigate('?tab=notifications');}} className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-sm font-bold ${activeTab === 'notifications' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>
               <div className="flex items-center gap-3"><Bell className="w-5 h-5" /> {t('profile.tabs.notifications')}</div>
               {unreadCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.8)]"></span>}
             </button>
-            
+
             <div className="mt-4 pt-4 border-t border-zinc-800">
               <button onClick={logout} className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-red-950/30 hover:text-red-500 transition-all border border-transparent hover:border-red-900/50">
                 <LogOut className="w-5 h-5" /> {t('profile.tabs.logout')}
@@ -543,14 +653,13 @@ const Profile = () => {
 
         {/* ПРАВА ПАНЕЛЬ: ВМІСТ ВКАЛОДОК */}
         <main className="lg:col-span-9">
-          
+
           {/* === ВКЛАДКА: ОСОБИСТІ ДАНІ === */}
           {activeTab === 'settings' && (
             <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-6 md:p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 shadow-xl relative overflow-hidden">
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-red-500/5 rounded-full blur-[60px] pointer-events-none"></div>
-              
               <h2 className="text-2xl font-black text-white mb-8 border-b border-zinc-800 pb-4 relative z-10">{t('profile.settings.title')}</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 relative z-10">
                 <div className="space-y-4 bg-zinc-950/50 p-6 md:p-8 rounded-3xl border border-zinc-800 shadow-inner">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider mb-6"><User className="w-5 h-5 text-red-500"/> {t('profile.settings.basicInfo')}</h3>
@@ -570,22 +679,45 @@ const Profile = () => {
 
                 <div className="space-y-4 bg-zinc-950/50 p-6 md:p-8 rounded-3xl border border-zinc-800 shadow-inner">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider mb-6"><Send className="w-5 h-5 text-amber-500"/> {t('profile.settings.contacts')}</h3>
-                 <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
+                  
+                  {/* 🔥 ОНОВЛЕНИЙ БЛОК ПРИВ'ЯЗКИ ТЕЛЕГРАМУ 🔥 */}
+                  <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
                     <label className="block text-[10px] font-black text-amber-500 mb-3 uppercase tracking-widest">{t('profile.settings.tgBindTitle')}</label>
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <div className="flex-1 text-xs text-zinc-400 font-medium">
-                        {t('profile.settings.tgBindDesc')}
+                    
+                    {telegramId ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex-1 flex flex-col">
+                          <span className="text-emerald-400 text-sm font-bold flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5" /> Акаунт підключено
+                          </span>
+                          <span className="text-zinc-500 text-xs mt-1">ID: {telegramId}</span>
+                        </div>
+                        <button 
+                          onClick={handleUnlinkTelegram}
+                          disabled={isLinkingTg}
+                          className="w-full sm:w-auto px-6 py-3 bg-red-950/50 hover:bg-red-900 text-red-500 hover:text-white font-black uppercase tracking-wider text-xs rounded-xl flex items-center justify-center gap-2 transition-all border border-red-900/50 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          {isLinkingTg ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} 
+                          Відв'язати
+                        </button>
                       </div>
-                      <a 
-                        href={`https://t.me/ESScANoR7?start=${user?.id}`} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black uppercase tracking-wider text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:scale-105"
-                      >
-                        <Send className="w-4 h-4" /> {t('profile.settings.bindBtn')}
-                      </a>
-                    </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex-1 text-xs text-zinc-400 font-medium">
+                          {t('profile.settings.tgBindDesc')}
+                        </div>
+                        <button 
+                          onClick={handleLinkTelegram}
+                          disabled={isLinkingTg}
+                          className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black uppercase tracking-wider text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          {isLinkingTg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} 
+                          {t('profile.settings.bindBtn', 'Прив\'язати')}
+                        </button>
+                      </div>
+                    )}
                   </div>
+
                   <div className="mt-4">
                     <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">{t('profile.settings.discordId')}</label>
                     <input placeholder="user#1234" className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 text-white text-sm outline-none focus:border-red-500 shadow-inner" />
@@ -604,13 +736,13 @@ const Profile = () => {
               <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/5 rounded-full blur-[50px] pointer-events-none"></div>
                 <h2 className="text-2xl font-black text-white mb-8 border-b border-zinc-800 pb-4 relative z-10">{t('profile.security.title')}</h2>
-                
+
                 <div className="max-w-md bg-zinc-950/50 p-6 md:p-8 rounded-3xl border border-zinc-800 shadow-inner relative z-10 space-y-6">
                   <div className="flex items-center gap-3 mb-4">
                     <Shield className="w-6 h-6 text-red-500" />
                     <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t('profile.security.changePass')}</h3>
                   </div>
-                  
+
                   <div>
                     <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">{t('profile.security.newPass')}</label>
                     <div className="relative">
@@ -632,7 +764,7 @@ const Profile = () => {
                     </div>
                     <ValidationMessage value={passwordForm.confirmPassword} isPasswordConfirm matchValue={passwordForm.newPassword} t={t} />
                   </div>
-                  
+
                   <button onClick={() => handleUpdateProfile('password')} disabled={isSaving || passwordForm.newPassword.length < 6 || passwordForm.newPassword !== passwordForm.confirmPassword} className="w-full py-4 mt-2 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white font-black uppercase tracking-wider rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2">
                     {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5"/>} {t('profile.security.updateSecurity')}
                   </button>
@@ -646,7 +778,7 @@ const Profile = () => {
                     {t('profile.security.logoutOther')}
                   </button>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-5 bg-zinc-950/80 border border-amber-500/30 rounded-2xl shadow-inner relative overflow-hidden">
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
@@ -663,11 +795,11 @@ const Profile = () => {
             </div>
           )}
 
-          {/* === ВКЛАДКА: ДЕТАЛІЗОВАНІ ЗАМОВЛЕННЯ === */}
+          {/* === ВКЛАДКА: ДЕТАЛІЗОВАНІ ЗАМОВЛЕННЯ ТА ЧАТ/ЧЕК === */}
           {activeTab === 'orders' && (
             <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-6 md:p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 shadow-xl">
               <h2 className="text-2xl font-black text-white mb-8 border-b border-zinc-800 pb-4">{t('profile.orders.title', 'Моя історія покупок')}</h2>
-              
+
               {isLoadingOrders ? (
                 <div className="flex justify-center py-16"><Loader2 className="w-10 h-10 text-red-500 animate-spin drop-shadow-md" /></div>
               ) : myOrders.length === 0 ? (
@@ -689,7 +821,6 @@ const Profile = () => {
                           className="p-6 flex flex-col md:flex-row gap-5 justify-between items-center cursor-pointer relative overflow-hidden"
                           onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
                         >
-                          {/* Світіння при доставці */}
                           {order.status === 'delivered' && <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>}
 
                           <div className="flex items-center gap-5 w-full md:w-auto relative z-10">
@@ -703,11 +834,13 @@ const Profile = () => {
                             <div>
                               <div className="text-white font-black text-lg flex items-center gap-3 mb-1">
                                 {t('profile.orders.orderNum', 'Замовлення #')}{order.id}
-                                {order.status === 'completed' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-zinc-800 text-zinc-500 border border-zinc-700">{t('profile.orders.status.completed', 'Виконано')}</span>}
-                                {order.status === 'new' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-zinc-800 text-zinc-300 border border-zinc-600">{t('profile.orders.status.new', 'Нове')}</span>}
-                                {order.status === 'processing' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-red-950/50 text-red-500 border border-red-900/50 shadow-[0_0_10px_rgba(220,38,38,0.2)]">{t('profile.orders.status.processing', 'В обробці')}</span>}
-                                {order.status === 'cancelled' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-red-950/30 text-red-700 border border-red-900/30">{t('profile.orders.status.cancelled', 'Скасовано')}</span>}
-                                {order.status === 'delivered' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-amber-500 text-zinc-950 shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse">{t('profile.orders.status.delivered', 'Очікує підтвердження')}</span>}
+                                {order.status === 'completed' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-zinc-800 text-zinc-500 border border-zinc-700">Виконано</span>}
+                                {order.status === 'new' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-zinc-800 text-zinc-300 border border-zinc-600">Нове</span>}
+                                {order.status === 'awaiting_payment' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-amber-950/50 text-amber-500 border border-amber-900/50 shadow-[0_0_10px_rgba(245,158,11,0.2)] animate-pulse">Очікує оплати</span>}
+                                {order.status === 'paid_processing' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-blue-950/50 text-blue-400 border border-blue-900/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]">Оплачено (В роботі)</span>}
+                                {order.status === 'processing' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-red-950/50 text-red-500 border border-red-900/50">В обробці</span>}
+                                {order.status === 'cancelled' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-red-950/30 text-red-700 border border-red-900/30">Скасовано</span>}
+                                {order.status === 'delivered' && <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-black tracking-widest bg-amber-500 text-zinc-950 shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse">Очікує підтвердження</span>}
                               </div>
                               <div className="text-xs text-zinc-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5"/> {date} • {order.cart?.length || 0} {t('profile.orders.items', 'товар(ів)')}</div>
                             </div>
@@ -722,7 +855,7 @@ const Profile = () => {
 
                         {isExpanded && (
                           <div className="bg-zinc-900/40 p-6 border-t border-zinc-800 animate-in slide-in-from-top-4">
-                            
+
                             {/* 🔥 БЛОК ПІДТВЕРДЖЕННЯ ДЛЯ КЛІЄНТА 🔥 */}
                             {order.status === 'delivered' && (
                               <div className="mb-8 p-5 md:p-6 bg-gradient-to-br from-amber-950/40 to-zinc-950 border border-amber-900/50 rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-between shadow-inner relative overflow-hidden">
@@ -743,37 +876,122 @@ const Profile = () => {
                                   >
                                     <CheckCircle2 className="w-5 h-5" /> {t('profile.orders.confirmDelivery', 'Підтвердити')}
                                   </button>
-                                  
-                                  <div className="flex gap-2 w-full sm:w-auto">
-                                    <a 
-                                      href={`https://t.me/ESScANoR7?text=${encodeURIComponent(`Вітаю! У мене проблема із замовленням #${order.id}. `)}`}
-                                      target="_blank" 
-                                      rel="noreferrer" 
-                                      className="flex-1 sm:w-auto px-5 py-4 bg-zinc-900 hover:bg-red-600 text-zinc-300 hover:text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-xs border border-zinc-700 hover:border-red-500 shadow-sm uppercase tracking-wider"
-                                      title={t('profile.orders.supportText', 'Повідомити про проблему')}
-                                    >
-                                      <MessageCircle className="w-4 h-4" /> Telegram
-                                    </a>
-                                  </div>
                                 </div>
                               </div>
                             )}
 
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 pl-2">{t('profile.orders.content', 'Вміст замовлення:')}</div>
-                            <div className="space-y-3">
-                              {order.cart.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-inner">
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center text-zinc-500 text-sm font-black border border-zinc-800/50">{idx + 1}</div>
-                                    <div>
-                                      <div className="text-base font-bold text-zinc-200">{item.product?.name || item.product?.title || 'Товар'}</div>
-                                      {item.userData?.nickname && <div className="text-xs text-zinc-500 mt-1 font-medium">Нікнейм: <span className="text-zinc-300">{item.userData.nickname}</span></div>}
+                            {/* 🔥 ЯКЩО ЗАМОВЛЕННЯ ВИКОНАНО - ПОКАЗУЄМО ЧЕК ЗАМІСТЬ СПИСКУ 🔥 */}
+                            {order.status === 'completed' ? (
+                              <div className="mb-8 bg-zinc-950/80 border border-zinc-800 rounded-2xl relative overflow-hidden shadow-lg max-w-xl mx-auto">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                                <div className="p-6">
+                                  <div className="flex flex-col items-center justify-center border-b border-dashed border-zinc-700 pb-6 mb-6 relative z-10">
+                                    <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center mb-3">
+                                      <CheckCircle2 className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-xl font-black text-white tracking-widest uppercase">Електронний чек</h3>
+                                    <p className="text-xs text-zinc-500 font-mono mt-1">Замовлення #{order.id} • {date}</p>
+                                  </div>
+                                  <div className="space-y-4 mb-6 font-mono text-sm relative z-10">
+                                    {order.cart.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-start gap-4 border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                        <div className="text-zinc-300">
+                                          <span className="text-zinc-600 mr-2">{idx + 1}.</span>
+                                          {item.product?.name || item.product?.title || 'Товар'}
+                                          {item.userData?.nickname && <div className="text-xs text-zinc-500 mt-1 ml-5">Нікнейм: {item.userData.nickname}</div>}
+                                        </div>
+                                        <div className="text-white whitespace-nowrap">${item.price}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="border-t border-dashed border-zinc-700 pt-4 flex justify-between items-end relative z-10">
+                                    <div className="text-xs font-mono text-zinc-500 uppercase">МЕТОД: {order.paymentMethod}</div>
+                                    <div className="text-right">
+                                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Сплачено</div>
+                                      <div className="text-2xl font-black text-emerald-400">${order.total}</div>
                                     </div>
                                   </div>
-                                  <div className="text-base font-black text-amber-500">${item.price}</div>
                                 </div>
-                              ))}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 pl-2">{t('profile.orders.content', 'Вміст замовлення:')}</div>
+                                <div className="space-y-3 mb-8">
+                                  {order.cart.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-inner">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center text-zinc-500 text-sm font-black border border-zinc-800/50">{idx + 1}</div>
+                                        <div>
+                                          <div className="text-base font-bold text-zinc-200">{item.product?.name || item.product?.title || 'Товар'}</div>
+                                          {item.userData?.nickname && <div className="text-xs text-zinc-500 mt-1 font-medium">Нікнейм: <span className="text-zinc-300">{item.userData.nickname}</span></div>}
+                                        </div>
+                                      </div>
+                                      <div className="text-base font-black text-amber-500">${item.price}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+
+                            {/* 🔥 ЧАТ-ТІКЕТ 🔥 */}
+                            <div className="border-t border-zinc-800 pt-8">
+                              <h4 className="text-lg font-black text-white mb-4 flex items-center gap-3">
+                                <MessageCircle className="w-6 h-6 text-amber-500" />
+                                Чат підтримки
+                              </h4>
+                              <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-4 md:p-6 flex flex-col h-[450px] shadow-inner relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[60px] pointer-events-none"></div>
+
+                                <div className="flex-1 overflow-y-auto pr-2 space-y-4 mb-4 flex flex-col relative z-10 custom-scrollbar">
+                                  {isChatLoading[order.id] && !chatData[order.id] ? (
+                                    <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin text-amber-500"/></div>
+                                  ) : chatData[order.id]?.length > 0 ? (
+                                    chatData[order.id].map(msg => (
+                                      <div key={msg.id} className={`max-w-[85%] rounded-2xl px-5 py-3 ${
+                                        msg.sender === 'user' 
+                                          ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-zinc-950 self-end rounded-br-sm shadow-md' 
+                                          : msg.sender === 'system' 
+                                            ? 'bg-zinc-800/50 text-zinc-400 self-center text-center text-xs border border-zinc-700 w-full'
+                                            : `bg-zinc-900 border border-zinc-700 text-white self-start rounded-bl-sm`
+                                      }`}>
+                                        <div className="whitespace-pre-wrap text-sm font-medium">{msg.text}</div>
+                                        {msg.sender !== 'system' && (
+                                          <div className={`text-[10px] mt-2 font-bold ${msg.sender === 'user' ? 'text-amber-950/60 text-right' : 'text-zinc-500'}`}>
+                                            {new Date(msg.created_at).toLocaleTimeString('uk-UA', {hour: '2-digit', minute:'2-digit'})}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="m-auto text-zinc-600 text-sm font-medium">Немає повідомлень. Напишіть щось, щоб почати діалог!</div>
+                                  )}
+                                </div>
+
+                                {order.status !== 'completed' && order.status !== 'cancelled' ? (
+                                  <div className="flex gap-3 items-center bg-zinc-900 p-2 pl-4 rounded-2xl border border-zinc-800 relative z-10 focus-within:border-amber-500/50 transition-colors">
+                                    <input 
+                                      type="text" 
+                                      placeholder="Напишіть повідомлення..."
+                                      value={chatInputs[order.id] || ''}
+                                      onChange={(e) => setChatInputs(prev => ({...prev, [order.id]: e.target.value}))}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(order.id); }}
+                                      className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-zinc-600"
+                                    />
+                                    <button 
+                                      onClick={() => handleSendMessage(order.id)}
+                                      className="w-12 h-12 bg-amber-600 hover:bg-amber-500 text-zinc-950 rounded-xl flex items-center justify-center transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:scale-105"
+                                    >
+                                      <Send className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500 text-xs font-bold uppercase tracking-wider relative z-10">
+                                    Тікет закрито (Замовлення {order.status === 'cancelled' ? 'скасовано' : 'завершено'})
+                                  </div>
+                                )}
+                              </div>
                             </div>
+
                           </div>
                         )}
                       </div>
@@ -842,37 +1060,7 @@ const Profile = () => {
             </div>
           )}
 
-          {/* === ВКЛАДКА: ОПЛАТА === */}
-          {activeTab === 'payment' && (
-            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800 rounded-3xl p-6 md:p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 shadow-xl">
-              <h2 className="text-2xl font-black text-white mb-8 border-b border-zinc-800 pb-4">{t('profile.payment.title')}</h2>
-              
-              <div className="max-w-2xl">
-                <h3 className="text-base font-bold text-white mb-3 uppercase tracking-wider">{t('profile.payment.mainMethod')}</h3>
-                <p className="text-sm text-zinc-400 mb-8 font-medium">{t('profile.payment.methodDesc')}</p>
-                
-                <div className="space-y-4">
-                  {[
-                    { id: 'crypto', name: t('profile.payment.crypto'), desc: t('profile.payment.cryptoDesc'), icon: Coins },
-                    { id: 'card', name: t('profile.payment.card'), desc: t('profile.payment.cardDesc'), icon: CreditCard },
-                    { id: 'wallet', name: t('profile.payment.wallet'), desc: t('profile.payment.walletDesc'), icon: Smartphone }
-                  ].map(method => (
-                    <label key={method.id} className={`flex items-center p-5 rounded-2xl border-2 cursor-pointer transition-all ${defaultPayment === method.id ? 'bg-red-950/20 border-red-600 shadow-[0_0_15px_rgba(220,38,38,0.2)]' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-600'}`}>
-                      <input type="radio" name="default_payment" checked={defaultPayment === method.id} onChange={() => handleSavePaymentMethod(method.id)} className="hidden" />
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mr-5 transition-colors border ${defaultPayment === method.id ? 'bg-red-600 border-red-500 text-white shadow-lg' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>
-                        <method.icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1">
-                        <div className={`font-black text-lg mb-1 ${defaultPayment === method.id ? 'text-white' : 'text-zinc-300'}`}>{method.name}</div>
-                        <div className="text-xs text-zinc-500 font-medium leading-relaxed">{method.desc}</div>
-                      </div>
-                      {defaultPayment === method.id && <CheckCircle2 className="w-7 h-7 text-red-500 drop-shadow-md ml-4" />}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          
 
           {/* === ВКЛАДКА: РЕФЕРАЛИ ТА БОНУСИ === */}
           {activeTab === 'referrals' && (
@@ -885,7 +1073,6 @@ const Profile = () => {
                   </h2>
                   <p className="text-base text-zinc-400 mb-10 max-w-xl font-medium">{t('profile.referrals.desc', 'Запрошуйте друзів за своїм посиланням і отримуйте відсоток від їхніх покупок на свій баланс!')}</p>
 
-                  {/* 🔥 БЛОК СТАТИСТИКИ 🔥 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-10">
                     <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-3xl flex items-center gap-6 shadow-inner relative overflow-hidden">
                       <div className="w-16 h-16 bg-red-950 border border-red-900 text-red-500 rounded-2xl flex items-center justify-center relative z-10">
@@ -912,7 +1099,6 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  {/* 🔥 БЛОК ПОСИЛАННЯ 🔥 */}
                   <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl flex flex-col sm:flex-row gap-4 items-center mb-12 shadow-inner">
                     <div className="flex-1 w-full relative">
                       <input 
@@ -926,7 +1112,6 @@ const Profile = () => {
                     </button>
                   </div>
 
-                  {/* 🔥 СПИСОК РЕФЕРАЛІВ 🔥 */}
                   <div>
                     <h3 className="text-xl font-black text-white mb-5 uppercase tracking-wider">Кого ви запросили:</h3>
                     {refData.isLoading ? (
@@ -977,7 +1162,7 @@ const Profile = () => {
                 ) : (
                   notifications.map(notif => {
                     const date = new Date(notif.created_at).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
-                    
+
                     let icon, bgClass, borderClass;
                     if (notif.type === 'success') {
                       icon = <CheckCircle2 className="w-6 h-6 text-amber-500 drop-shadow-sm" />;

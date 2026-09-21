@@ -1,6 +1,7 @@
 import requests
 import sys
 import time
+import io
 
 BASE_URL = "http://localhost:8000/api"
 
@@ -34,7 +35,7 @@ def print_status(response, item_name):
         print(f"❌ Помилка для {item_name}: {response.status_code} - {response.text}")
 
 # =======================================
-# 1. СТВОРЮЄМО АКАУНТИ З ФОТО ТА СТАТУСАМИ
+# 1. СТВОРЮЄМО АКАУНТИ (З ФАЙЛАМИ ДЛЯ ТГ)
 # =======================================
 accounts = [
     {
@@ -45,17 +46,9 @@ accounts = [
             "base_price": "750.00",
             "tags": "1200+MM, Champ, K1178",
             "bind": "Facebook + Gmail",
-            "images": [
-                "https://picsum.photos/id/10/800/450",
-                "https://picsum.photos/id/11/800/450"
-            ],
-            "stats": {
-                "might": "1200+MM",
-                "mix_atk": "1204-1140-1180%",
-                "heroes": "10 Champ",
-                "artifacts": "29 Blessed"
-            }
+            "stats": '{"might": "1200+MM", "mix_atk": "1204-1140-1180%", "heroes": "10 Champ", "artifacts": "29 Blessed"}'
         },
+        "image_url": "https://picsum.photos/id/10/800/450",
         "status": "active"
     },
     {
@@ -66,23 +59,25 @@ accounts = [
             "base_price": "2200.00",
             "tags": "5900+mm, Lv.15 Champs, 1600+ stats",
             "bind": "Google",
-            "images": [
-                "https://picsum.photos/id/12/800/450"
-            ],
-            "stats": {
-                "might": "5900+MM",
-                "mix_atk": "1634-1632-1678%",
-                "heroes": "3 Lv.15 Champs",
-                "artifacts": "161 Blessed"
-            }
+            "stats": '{"might": "5900+MM", "mix_atk": "1634-1632-1678%", "heroes": "3 Lv.15 Champs", "artifacts": "161 Blessed"}'
         },
+        "image_url": "https://picsum.photos/id/12/800/450",
         "status": "active"
     }
 ]
 
 print("🛡️ Generation of Accounts...")
 for acc in accounts:
-    res = session.post(f"{BASE_URL}/accounts", json=acc["data"])
+    # Завантажуємо фейкову картинку в оперативну пам'ять
+    img_resp = requests.get(acc["image_url"])
+    file_tuple = ("image.jpg", io.BytesIO(img_resp.content), "image/jpeg")
+
+    # Відправляємо як Multipart Form-Data (як це робить браузер)
+    res = session.post(
+        f"{BASE_URL}/accounts",
+        data=acc["data"],
+        files={"images": file_tuple}
+    )
     print_status(res, acc["data"]["title"])
 
     if res.status_code == 200 and acc["status"] != "active":
@@ -91,7 +86,7 @@ for acc in accounts:
             status_res = session.put(f"{BASE_URL}/accounts/{acc_id}/status", json={"status": acc["status"]})
             if status_res.status_code == 200:
                 print(f"   🔄 Статус змінено на: {acc['status']}")
-    time.sleep(0.1)
+    time.sleep(0.5)
 
 # =======================================
 # 2. СТВОРЮЄМО РЕСУРСИ ТА САМОЦВІТИ
@@ -145,10 +140,8 @@ other_items = [
 ]
 
 print("\n🎁 Generation of Other Items...")
-for item in other_items:
-    res = session.post(f"{BASE_URL}/other-items", json=item)
-    print_status(res, item["name"])
-    time.sleep(0.1)
+res_oth = session.post(f"{BASE_URL}/other-items/bulk", json=other_items)
+print_status(res_oth, "Інші товари (Bulk)")
 
 # =======================================
 # 4. СТВОРЮЄМО ПРОМОКОДИ
@@ -184,4 +177,4 @@ for promo in promocodes:
     print_status(res, promo['code'])
     time.sleep(0.1)
 
-print("\n🎉 ГОТОВО! База даних успішно заповнена.")
+print("\n🎉 ГОТОВО! База даних успішно заповнена, а пости надіслано в Telegram.")
