@@ -1,118 +1,121 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, XCircle, CheckCircle2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
-import { useCart } from '../context/CartContext'; 
+import { useCart } from '../context/CartContext';
+import { PriceDisplay } from '../context/CurrencyContext'; 
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next'; // 🔥 ІМПОРТ ПЕРЕКЛАДІВ
 import toast from 'react-hot-toast';
+import { apiGet } from '../config/apiClient';
+import { getFullUrl, API_ENDPOINTS } from '../config/api';
 
 // ПОВНИЙ КАТАЛОГ ТОВАРІВ
 const gemItemsCatalog = {
   SpeedUps: [
-    { id: 's1', name: 'Speed 60 minutes', cost: 130 },
-    { id: 's2', name: 'Speed 3 Hours', cost: 300 },
-    { id: 's3', name: 'Speed 8 Hours', cost: 650 },
-    { id: 's4', name: 'Speed 15 Hours', cost: 1000 },
-    { id: 's5', name: 'Speed 24 Hours', cost: 1500 },
-    { id: 's6', name: 'Speed 3 Days', cost: 4400 },
-    { id: 's7', name: 'Speed 7 Days', cost: 10000 },
-    { id: 's8', name: 'Speed 30 Days', cost: 40000 }
+    { id: 's1', name: 'Speed 60 minutes', cost: 130, icon: 's60m.png' },
+    { id: 's2', name: 'Speed 3 Hours', cost: 300, icon: 's3h.png' },
+    { id: 's3', name: 'Speed 8 Hours', cost: 650, icon: 's8h.png' },
+    { id: 's4', name: 'Speed 15 Hours', cost: 1000, icon: 's15h.png' },
+    { id: 's5', name: 'Speed 24 Hours', cost: 1500, icon: 's24h.png' },
+    { id: 's6', name: 'Speed 3 Days', cost: 4400, icon: 's3d.png' },
+    { id: 's7', name: 'Speed 7 Days', cost: 10000, icon: 's7d.png' },
+    { id: 's8', name: 'Speed 30 Days', cost: 40000, icon: 's30d.png' }
   ],
   Combat: [
-    { id: 'c1', name: 'Braveheart', cost: 2000 },
-    { id: 'c2', name: 'Random Relocator', cost: 500 },
-    { id: 'c3', name: 'Relocator', cost: 1500 },
-    { id: 'c4', name: 'Royal Pass', cost: 100000 },
-    { id: 'c5', name: 'Winged Boots 25%', cost: 500 },
-    { id: 'c6', name: 'Winged Boots 50%', cost: 900 },
-    { id: 'c7', name: 'Attack Boost 20% 12h', cost: 250 },
-    { id: 'c8', name: 'Attack Boost 20% 24h', cost: 400 },
-    { id: 'c9', name: 'Army Defence Boost 20% 12h', cost: 250 },
-    { id: 'c10', name: 'Defence Boost 20% 24h', cost: 400 },
-    { id: 'c11', name: 'Army Size Boost 20% 4h', cost: 2400 },
-    { id: 'c12', name: 'Army Size Boost 50% 4h', cost: 5000 },
-    { id: 'c13', name: 'Shield 8 Hours', cost: 500 },
-    { id: 'c14', name: 'Shield 24 Hours', cost: 1000 },
-    { id: 'c15', name: 'Shield 3 Days', cost: 3500 },
-    { id: 'c16', name: 'Shield 7 Days', cost: 10000 },
-    { id: 'c17', name: 'Shield 14 Days', cost: 25000 },
-    { id: 'c18', name: 'Anti-Scout 24h', cost: 600 },
-    { id: 'c19', name: 'Anti-Scout 3d', cost: 1200 },
-    { id: 'c20', name: 'Anti-Scout 7d', cost: 3000 }
+    { id: 'c1', name: 'Braveheart', cost: 2000, icon: 'braveheart.png' },
+    { id: 'c2', name: 'Random Relocator', cost: 500, icon: 'rrelo.png' },
+    { id: 'c3', name: 'Relocator', cost: 1500, icon: 'relo.png' },
+    { id: 'c4', name: 'Royal Pass', cost: 100000, icon: 'rp.png' },
+    { id: 'c5', name: 'Winged Boots 25%', cost: 500, icon: 'wb.png' },
+    { id: 'c6', name: 'Winged Boots 50%', cost: 900, icon: 'wb.png' },
+    { id: 'c7', name: 'Attack Boost 20% 12h', cost: 250, icon: 'atkb.png' },
+    { id: 'c8', name: 'Attack Boost 20% 24h', cost: 400, icon: 'atkb.png' },
+    { id: 'c9', name: 'Army Defence Boost 20% 12h', cost: 250, icon: 'defb.png' },
+    { id: 'c10', name: 'Defence Boost 20% 24h', cost: 400, icon: 'defb.png' },
+    { id: 'c11', name: 'Army Size Boost 20% 4h', cost: 2400, icon: 'asize.png' },
+    { id: 'c12', name: 'Army Size Boost 50% 4h', cost: 5000, icon: 'asize.png' },
+    { id: 'c13', name: 'Shield 8 Hours', cost: 500, icon: 'sh8h.png' },
+    { id: 'c14', name: 'Shield 24 Hours', cost: 1000, icon: 'sh24h.png' },
+    { id: 'c15', name: 'Shield 3 Days', cost: 3500, icon: 'sh3d.png' },
+    { id: 'c16', name: 'Shield 7 Days', cost: 10000, icon: 'sh7d.png' },
+    { id: 'c17', name: 'Shield 14 Days', cost: 25000, icon: 'sh24d.png' },
+    { id: 'c18', name: 'Anti-Scout 24h', cost: 600, icon: 'as24.png' },
+    { id: 'c19', name: 'Anti-Scout 3d', cost: 1200, icon: 'as3d.png' },
+    { id: 'c20', name: 'Anti-Scout 7d', cost: 3000, icon: 'as7d.png' }
   ],
   Boost: [
-    { id: 'b1', name: '25% Player EXP Boost 24h', cost: 2500 },
-    { id: 'b2', name: 'Talent Reset', cost: 1000 },
-    { id: 'b3', name: 'Talent Tome', cost: 1000 },
-    { id: 'b4', name: 'Quest Scroll (Admin)', cost: 800 },
-    { id: 'b5', name: 'Quest Scroll (Guild)', cost: 1000 },
-    { id: 'b6', name: '500 VIP Points', cost: 500 },
-    { id: 'b7', name: '1000 VIP Points', cost: 1000 },
-    { id: 'b8', name: '5000 VIP Points', cost: 5000 },
-    { id: 'b9', name: '10 Lucky Tokens', cost: 6600 },
-    { id: 'b10', name: '100 Lucky Tokens', cost: 60000 },
-    { id: 'b11', name: '1000 Holy Stars', cost: 2200 },
-    { id: 'b12', name: '10000 Holy Stars', cost: 20000 }
+    { id: 'b1', name: '25% Player EXP Boost 24h', cost: 2500, icon: 'xp.png' },
+    { id: 'b2', name: 'Talent Reset', cost: 1000, icon: 'tr.png' },
+    { id: 'b3', name: 'Talent Tome', cost: 1000, icon: 'tt.png' },
+    { id: 'b4', name: 'Quest Scroll (Admin)', cost: 800, icon: 'qsa.png' },
+    { id: 'b5', name: 'Quest Scroll (Guild)', cost: 1000, icon: 'qsg.png' },
+    { id: 'b6', name: '500 VIP Points', cost: 500, icon: 'vp5.png' },
+    { id: 'b7', name: '1000 VIP Points', cost: 1000, icon: 'vp10.png' },
+    { id: 'b8', name: '5000 VIP Points', cost: 5000, icon: 'vp50.png' },
+    { id: 'b9', name: '10 Lucky Tokens', cost: 6600, icon: 'lt1.png' },
+    { id: 'b10', name: '100 Lucky Tokens', cost: 60000, icon: 'lt10.png' },
+    { id: 'b11', name: '1000 Holy Stars', cost: 2200, icon: 'hs1.png' },
+    { id: 'b12', name: '10000 Holy Stars', cost: 20000, icon: 'hs10.png' }
   ],
   Resources: [
-    { id: 'r1', name: 'Gather Boost 50% 24h', cost: 600 },
-    { id: 'r2', name: 'Gather Boost 50% 7d', cost: 3360 },
-    { id: 'r3', name: 'Reduce Upkeep 50% 24h', cost: 2000 },
-    { id: 'r4', name: 'Reduce Upkeep 50% 7d', cost: 11200 },
-    { id: 'r5', name: 'Food 20 Million', cost: 10000 },
-    { id: 'r6', name: 'Food 60 Million', cost: 28000 },
-    { id: 'r7', name: 'Stone 5 Million', cost: 10000 },
-    { id: 'r8', name: 'Stone 15 Million', cost: 28000 },
-    { id: 'r9', name: 'Wood 5 Million', cost: 10000 },
-    { id: 'r10', name: 'Wood 15 Million', cost: 28000 },
-    { id: 'r11', name: 'Ore 5 Million', cost: 10000 },
-    { id: 'r12', name: 'Ore 15 Million', cost: 28000 },
-    { id: 'r13', name: 'Gold 2 Million', cost: 10000 },
-    { id: 'r14', name: 'Gold 6 Million', cost: 28000 }
+    { id: 'r1', name: 'Gather Boost 50% 24h', cost: 600, icon: 'gb.png' },
+    { id: 'r2', name: 'Gather Boost 50% 7d', cost: 3360, icon: 'gb.png' },
+    { id: 'r3', name: 'Reduce Upkeep 50% 24h', cost: 2000, icon: 'upk.png' },
+    { id: 'r4', name: 'Reduce Upkeep 50% 7d', cost: 11200, icon: 'upk.png' },
+    { id: 'r5', name: 'Food 20 Million', cost: 10000, icon: 'f20.png' },
+    { id: 'r6', name: 'Food 60 Million', cost: 28000, icon: 'f60.png' },
+    { id: 'r7', name: 'Stone 5 Million', cost: 10000, icon: 's5.png' },
+    { id: 'r8', name: 'Stone 15 Million', cost: 28000, icon: 's15.png' },
+    { id: 'r9', name: 'Wood 5 Million', cost: 10000, icon: 'w5.png' },
+    { id: 'r10', name: 'Wood 15 Million', cost: 28000, icon: 'w15.png' },
+    { id: 'r11', name: 'Ore 5 Million', cost: 10000, icon: 'o5.png' },
+    { id: 'r12', name: 'Ore 15 Million', cost: 28000, icon: 'o15.png' },
+    { id: 'r13', name: 'Gold 2 Million', cost: 10000, icon: 'g2.png' },
+    { id: 'r14', name: 'Gold 6 Million', cost: 28000, icon: 'g6.png' }
   ],
   Chests: [
-    { id: 'ch1', name: 'Rare Material Chest', cost: 1500 },
-    { id: 'ch2', name: 'Epic Material Chest', cost: 3000 },
-    { id: 'ch3', name: 'Legendary Material Chest', cost: 3000 },
-    { id: 'ch4', name: 'Rare Jewel Chest', cost: 3000 },
-    { id: 'ch5', name: 'Epic Jewel Chest', cost: 6000 },
-    { id: 'ch6', name: 'Legendary Jewel Chest', cost: 6000 },
-    { id: 'ch7', name: 'Chisel I', cost: 400 },
-    { id: 'ch8', name: 'Chisel II', cost: 1000 },
-    { id: 'ch9', name: 'Chisel III', cost: 2000 },
-    { id: 'ch10', name: 'Chisel IV', cost: 3000 },
-    { id: 'ch11', name: 'Chisel V', cost: 4000 }
+    { id: 'ch1', name: 'Rare Material Chest', cost: 1500, icon: 'rc.png' },
+    { id: 'ch2', name: 'Epic Material Chest', cost: 3000, icon: 'ec.png' },
+    { id: 'ch3', name: 'Legendary Material Chest', cost: 3000, icon: 'lc.png' },
+    { id: 'ch4', name: 'Rare Jewel Chest', cost: 3000, icon: 'rj.png' },
+    { id: 'ch5', name: 'Epic Jewel Chest', cost: 6000, icon: 'ej.png' },
+    { id: 'ch6', name: 'Legendary Jewel Chest', cost: 6000, icon: 'lj.png' },
+    { id: 'ch7', name: 'Chisel I', cost: 400, icon: 'shg.png' },
+    { id: 'ch8', name: 'Chisel II', cost: 1000, icon: 'shgr.png' },
+    { id: 'ch9', name: 'Chisel III', cost: 2000, icon: 'shb.png' },
+    { id: 'ch10', name: 'Chisel IV', cost: 3000, icon: 'shp.png' },
+    { id: 'ch11', name: 'Chisel V', cost: 4000, icon: 'shgo.png' }
   ],
   Buildings: [
-    { id: 'bd1', name: 'Archaic Tome', cost: 900 },
-    { id: 'bd2', name: 'Gold Hammer', cost: 2000 },
-    { id: 'bd3', name: 'War Tomes', cost: 15 },
-    { id: 'bd4', name: 'Steel Cuffs', cost: 15 },
-    { id: 'bd5', name: 'Soul Crystal', cost: 15 },
-    { id: 'bd6', name: 'Crystal Pickaxe', cost: 20 },
-    { id: 'bd7', name: 'Finish Demolition', cost: 20 }
+    { id: 'bd1', name: 'Archaic Tome', cost: 900, icon: 'art.png' },
+    { id: 'bd2', name: 'Gold Hammer', cost: 2000, icon: 'gh.png' },
+    { id: 'bd3', name: 'War Tomes', cost: 15, icon: 'wt.png' },
+    { id: 'bd4', name: 'Steel Cuffs', cost: 15, icon: 'scu.png' },
+    { id: 'bd5', name: 'Soul Crystal', cost: 15, icon: 'sc.png' },
+    { id: 'bd6', name: 'Crystal Pickaxe', cost: 20, icon: 'cp.png' },
+    { id: 'bd7', name: 'Finish Demolition', cost: 20, icon: 'fd.png' }
   ],
   Familiar: [
-    { id: 'f1', name: 'Bright Talent Orb', cost: 3000 },
-    { id: 'f2', name: 'Brilliant Talent Orb', cost: 7500 },
-    { id: 'f3', name: 'Merge 60 Minutes', cost: 260 },
-    { id: 'f4', name: 'Merge 3 Hours', cost: 600 },
-    { id: 'f5', name: 'Merge 8 Hours', cost: 1300 },
-    { id: 'f6', name: 'Merge 24 Hours', cost: 3000 },
-    { id: 'f7', name: 'Merge 3 Days', cost: 8800 },
-    { id: 'f8', name: 'Merge 7 Days', cost: 20000 },
-    { id: 'f9', name: '2m Anima', cost: 10000 },
-    { id: 'f10', name: '6m Anima', cost: 28000 },
-    { id: 'f11', name: 'Anchient Core', cost: 1000 },
-    { id: 'f12', name: 'Chaos Core', cost: 7500 },
-    { id: 'f13', name: '10% Pact Merging Boost 1 hour', cost: 1000 }
+    { id: 'f1', name: 'Bright Talent Orb', cost: 3000, icon: 'brto.png' },
+    { id: 'f2', name: 'Brilliant Talent Orb', cost: 7500, icon: 'blto.png' },
+    { id: 'f3', name: 'Merge 60 Minutes', cost: 260, icon: 'm60m.png' },
+    { id: 'f4', name: 'Merge 3 Hours', cost: 600, icon: 'm3h.png' },
+    { id: 'f5', name: 'Merge 8 Hours', cost: 1300, icon: 'm8h.png' },
+    { id: 'f6', name: 'Merge 24 Hours', cost: 3000, icon: 'm24h.png' },
+    { id: 'f7', name: 'Merge 3 Days', cost: 8800, icon: 'm3d.png' },
+    { id: 'f8', name: 'Merge 7 Days', cost: 20000, icon: 'm7d.png' },
+    { id: 'f9', name: '2m Anima', cost: 10000, icon: 'a2m.png' },
+    { id: 'f10', name: '6m Anima', cost: 28000, icon: 'a6m.png' },
+    { id: 'f11', name: 'Anchient Core', cost: 1000, icon: 'ac.png' },
+    { id: 'f12', name: 'Chaos Core', cost: 7500, icon: 'cc.png' },
+    { id: 'f13', name: '10% Pact Merging Boost 1 hour', cost: 1000, icon: 'pmb.png' }
   ],
   MonsterHunt: [
-    { id: 'mh1', name: 'Monster Hunt ATK Boost 25%', cost: 1000 },
-    { id: 'mh2', name: '5000 Energy', cost: 1125 },
-    { id: 'mh3', name: '10000 Energy', cost: 2000 },
-    { id: 'mh4', name: '20000 Energy', cost: 3500 },
-    { id: 'mh5', name: '50000 Energy', cost: 7500 }
+    { id: 'mh1', name: 'Monster Hunt ATK Boost 25%', cost: 1000, icon: 'mh.png' },
+    { id: 'mh2', name: '5000 Energy', cost: 1125, icon: 'mh5.png' },
+    { id: 'mh3', name: '10000 Energy', cost: 2000, icon: 'mh10.png' },
+    { id: 'mh4', name: '20000 Energy', cost: 3500, icon: 'mh20.png' },
+    { id: 'mh5', name: '50000 Energy', cost: 7500, icon: 'mh50.png' }
   ]
 };
 
@@ -139,9 +142,8 @@ const GemsBuilder = () => {
   useEffect(() => {
     const fetchGemsRates = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/gems');
-        if (response.ok) {
-          const data = await response.json();
+        const data = await apiGet(getFullUrl(API_ENDPOINTS.GEMS));
+        if (Array.isArray(data)) {
           setGemsRatesFromDB(data);
         }
       } catch (error) {
@@ -153,41 +155,102 @@ const GemsBuilder = () => {
     fetchGemsRates();
   }, []);
 
-  // ДИНАМІЧНИЙ ПІДРАХУНОК МІЦІ
-  let dynamicRate = null;
-  let parsedM = 0;
+  // ==========================================
+  // ⚡ РОЗУМНИЙ ПАРСИНГ МІЦІ ТА ДІАПАЗОНІВ (M, B, Б, МЛН, МЛРД, ДЕСЯТКОВІ)
+  // ==========================================
+  const parseMightToM = (valStr) => {
+    if (!valStr) return 0;
+    const s = String(valStr).toLowerCase().replace(/,/g, '.').trim();
 
-  if (mightStr && gemsRatesFromDB.length > 0) {
-    const str = String(mightStr).toLowerCase();
-    const bMatch = str.match(/(\d+)\s*b/); 
-    const mMatch = str.match(/(\d+)\s*m/); 
-
-    if (bMatch) parsedM += parseInt(bMatch[1]) * 1000;
-    if (mMatch) parsedM += parseInt(mMatch[1]);
-    if (!bMatch && !mMatch) {
-      const nums = str.match(/\d+/);
-      if (nums) parsedM = parseInt(nums[0]);
+    // Якщо введено повне число (наприклад 200000000 або 1250000000)
+    const plainNum = parseFloat(s.replace(/\s+/g, ''));
+    if (!isNaN(plainNum) && plainNum >= 10000000) {
+      return plainNum / 1000000;
     }
 
-    if (parsedM > 0) {
-      for (const gem of gemsRatesFromDB) {
-        const rangeStr = String(gem.range).replace(/m|м/gi, '').trim(); 
-        const parts = rangeStr.split('-');
-        
-        if (parts.length === 2) {
-          const minMight = parseInt(parts[0].trim()) || 0;
-          const maxMight = parseInt(parts[1].trim()) || Infinity;
-          
-          if (parsedM >= minMight && parsedM <= maxMight) {
-            dynamicRate = gem.rate;
-            break; 
-          }
-        }
+    let totalM = 0;
+    let matched = false;
+
+    // Мільярди: 1b, 2.5b, 1б, 2,5б, 1 млрд
+    const bMatches = [...s.matchAll(/([0-9]+(?:\.[0-9]+)?)\s*(?:b|б|млрд)/gi)];
+    for (const m of bMatches) {
+      totalM += parseFloat(m[1]) * 1000;
+      matched = true;
+    }
+
+    // Мільйони: 200m, 500м, 2500m, 200 млн
+    const mMatches = [...s.matchAll(/([0-9]+(?:\.[0-9]+)?)\s*(?:m|м|млн)/gi)];
+    for (const m of mMatches) {
+      totalM += parseFloat(m[1]);
+      matched = true;
+    }
+
+    // Тисячі: 500k, 500к
+    const kMatches = [...s.matchAll(/([0-9]+(?:\.[0-9]+)?)\s*(?:k|к|тис)/gi)];
+    for (const m of kMatches) {
+      totalM += parseFloat(m[1]) / 1000;
+      matched = true;
+    }
+
+    // Без суфікса (наприклад: "200" або "1200")
+    if (!matched) {
+      const rawMatch = s.match(/[0-9]+(?:\.[0-9]+)?/);
+      if (rawMatch) {
+        const val = parseFloat(rawMatch[0]);
+        totalM = val >= 10000000 ? val / 1000000 : val;
       }
-      
-      if (!dynamicRate && gemsRatesFromDB.length > 0) {
-        dynamicRate = gemsRatesFromDB[gemsRatesFromDB.length - 1].rate;
+    }
+
+    return totalM;
+  };
+
+  const parseRangeToM = (rangeStr) => {
+    if (!rangeStr) return { min: 0, max: Infinity };
+    const str = String(rangeStr).trim();
+    const parts = str.split(/[-–—/]/);
+    if (parts.length === 2) {
+      return { min: parseMightToM(parts[0]), max: parseMightToM(parts[1]) };
+    } else if (parts.length === 1) {
+      const single = parseMightToM(parts[0]);
+      if (str.includes('+') || str.includes('>') || str.toLowerCase().includes('від')) {
+        return { min: single, max: Infinity };
       }
+      return { min: 0, max: single };
+    }
+    return { min: 0, max: Infinity };
+  };
+
+  // ДИНАМІЧНИЙ ПІДРАХУНОК МІЦІ ТА ТАРИФУ
+  let dynamicRate = null;
+  let matchedTier = null;
+  const parsedM = parseMightToM(mightStr);
+
+  if (parsedM > 0 && gemsRatesFromDB.length > 0) {
+    // 1. Шукаємо точний збіг у діапазоні
+    for (const gem of gemsRatesFromDB) {
+      const { min, max } = parseRangeToM(gem.range);
+      if (parsedM >= min && parsedM <= max) {
+        dynamicRate = gem.rate;
+        matchedTier = gem;
+        break;
+      }
+    }
+
+    // 2. Якщо менше за найнижчий діапазон — беремо перший
+    if (!dynamicRate) {
+      const firstGem = gemsRatesFromDB[0];
+      const { min: firstMin } = parseRangeToM(firstGem.range);
+      if (parsedM < firstMin) {
+        dynamicRate = firstGem.rate;
+        matchedTier = firstGem;
+      }
+    }
+
+    // 3. Якщо більше за найвищий діапазон — беремо останній
+    if (!dynamicRate) {
+      const lastGem = gemsRatesFromDB[gemsRatesFromDB.length - 1];
+      dynamicRate = lastGem.rate;
+      matchedTier = lastGem;
     }
   }
 
@@ -225,8 +288,8 @@ const GemsBuilder = () => {
   };
 
   const handleAddToCart = () => {
-    if (!nickname || !mightStr) {
-      toast.error(t('builder.errorFillData')); // 🔥 ПЕРЕКЛАД
+    if (!nickname.trim() || !mightStr.trim() || !guild.trim()) {
+      toast.error(t('builder.errorFillData', "Будь ласка, заповніть всі обов'язкові дані: Нікнейм, Гільдія та Могутність!"));
       return;
     }
 
@@ -254,8 +317,16 @@ const GemsBuilder = () => {
   };
 
   const handleImageError = (e) => {
+    const id = e.target.dataset?.id;
+    if (id && !e.target.dataset?.fallbackDone) {
+      e.target.dataset.fallbackDone = 'true';
+      e.target.src = `/items/${id}.png`;
+      return;
+    }
     e.target.style.display = 'none';
-    e.target.nextSibling.style.display = 'flex';
+    if (e.target.nextSibling) {
+      e.target.nextSibling.style.display = 'flex';
+    }
   };
 
   if (isLoading) {
@@ -295,14 +366,14 @@ const GemsBuilder = () => {
             <div className="flex justify-between items-center py-4 border-t border-slate-700/50">
               <span className="text-slate-300">{t('builder.ratePer100k')}</span>
               <div className="text-right">
-                <span className="text-lg text-slate-300 font-bold">${finalRate.toFixed(2)}</span>
+                <PriceDisplay price={finalRate} size="sm" />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-4 border-t border-slate-700/50">
               <span className="text-slate-300 font-bold">{t('builder.totalToPay')}</span>
               <div className="text-right">
-                <span className="text-3xl font-black text-emerald-400">${finalTotalPrice}</span>
+                <PriceDisplay price={finalTotalPrice} size="xl" />
               </div>
             </div>
 
@@ -313,17 +384,28 @@ const GemsBuilder = () => {
               
               <div className="mb-4">
                 <input value={guild} onChange={(e) => setGuild(e.target.value.slice(0, 3).toUpperCase())} placeholder={t('builder.guildPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none uppercase transition-colors" />
-                <div className="mt-2 ml-1 flex items-start gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                  <span className="text-amber-500 text-xs font-bold leading-snug">{t('builder.guildWarning')}</span>
+                <div className="mt-2 ml-1 flex items-start gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-amber-300 text-xs font-bold leading-snug">{t('builder.guildWarning')}</span>
                 </div>
               </div>
 
               <input value={mightStr} onChange={(e) => setMightStr(e.target.value)} placeholder={t('builder.mightPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none transition-colors" />
               
               {parsedM > 0 && dynamicRate && (
-                <div className="text-xs mt-3 text-emerald-400 font-medium bg-emerald-900/20 border border-emerald-500/20 p-2 rounded-lg">
-                  {t('builder.recognizedMight', { might: parsedM.toLocaleString() })}
+                <div className="text-xs mt-3 text-emerald-400 font-medium bg-emerald-900/20 border border-emerald-500/20 p-2.5 rounded-xl flex items-center justify-between">
+                  <span>
+                    {t('builder.recognizedMight', {
+                      might: parsedM >= 1000
+                        ? `${(parsedM / 1000).toFixed(parsedM % 100 === 0 ? 1 : 2).replace(/\.00$/, '').replace(/\.0$/, '')}B (${parsedM.toLocaleString()}M)`
+                        : `${parsedM.toLocaleString()}M`
+                    })}
+                  </span>
+                  {matchedTier?.range && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+                      {matchedTier.range} (${parseFloat(dynamicRate).toFixed(2)})
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -368,7 +450,8 @@ const GemsBuilder = () => {
                 <div className="col-span-12 md:col-span-6 flex items-center gap-4">
                   <div className="w-12 h-12 flex-shrink-0 bg-slate-900 rounded-xl p-1 border border-slate-700 shadow-md flex items-center justify-center overflow-hidden group-hover:border-blue-500/50 transition-colors">
                     <img 
-                      src={`/items/${item.id}.webp`} 
+                      src={item.icon ? `/items/${item.icon}` : `/items/${item.id}.png`} 
+                      data-id={item.id}
                       alt={item.name} 
                       loading="lazy" 
                       className="w-full h-full object-contain"
@@ -419,7 +502,7 @@ const GemsBuilder = () => {
                       </button>
                       
                       <div className="w-8 h-8 rounded border border-slate-700 bg-slate-800 p-0.5 overflow-hidden flex items-center justify-center">
-                         <img src={`/items/${wItem.id}.webp`} alt="" className="w-full h-full object-contain" onError={handleImageError} />
+                         <img src={wItem.icon ? `/items/${wItem.icon}` : `/items/${wItem.id}.png`} data-id={wItem.id} alt="" className="w-full h-full object-contain" onError={handleImageError} />
                          <div className="hidden"><ImageIcon className="w-4 h-4 text-slate-600" /></div>
                       </div>
 

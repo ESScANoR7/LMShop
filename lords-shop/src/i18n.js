@@ -9,6 +9,7 @@ const resources = {
         "resources": "РЕСУРСИ",
         "sapphires": "САПФІРИ",
         "gems": "САПФІРИ",
+        "otherItems": "ІНШІ ТОВАРИ",
         "accounts": "АКАУНТИ",
         "other": "ІНШЕ",
         "guarantees": "ГАРАНТІЇ",
@@ -22,15 +23,41 @@ const resources = {
         "login": "Увійти",
         "logout": "Вийти",
         "admin": "Адмін",
-        "balance": "Баланс"
+        "balance": "Баланс",
+        "language": "Мова"
+      },
+      "themes": {
+        "title": "Тема сайту",
+        "variants": "4 варіанти",
+        "buttonTitle": "Тема: {{name}}. Натисніть для вибору",
+        "blue": {
+          "name": "Синя",
+          "desc": "Спокійна"
+        },
+        "red": {
+          "name": "Червона",
+          "desc": "Бойова"
+        },
+        "pink": {
+          "name": "Рожево-біла",
+          "desc": "Сакура"
+        },
+        "monochrome": {
+          "name": "Чорно-біла",
+          "desc": "Класика"
+        }
       },
       "orderModal": {
         "title": "Оформлення: {{name}}",
         "nickname": "Нікнейм (нік)",
         "guild": "Гільдія",
         "rssWarning": "⚠️ Гільдія повинна бути відкритою!",
+        "rssWarningFull": "⚠️ Гравець має бути подалі від Fort та знаходитись у відкритій гільдії (більше 20 місць без ліміту по міці) у себе в королівстві!",
+        "rssDataLabel": "Ваші дані (Гільдія, Нікнейм, Координати)",
+        "rssPlaceholder": "[xxx]name123 K:1111 X:111 Y:111",
+        "ticketInfo": "Після оформлення буде створено тікет у Telegram. Як тільки адміністратор звільниться, він відповість вам та виконає замовлення.",
         "coordinates": "Координати замку",
-        "confirm": "Підтвердити"
+        "confirm": "Додати в кошик"
       },
       "topup": {
         "title": "Поповнення балансу",
@@ -95,8 +122,8 @@ const resources = {
         "totalToPay": "До сплати:",
         "gameDataTitle": "Ваші ігрові дані",
         "nicknamePlaceholder": "Нікнейм гравця (Eng)",
-        "guildPlaceholder": "Гільдія (необов'язково)",
-        "guildWarning": "Гільдія має бути лише відкритою! Інакше ми не зможемо доставити товар.",
+        "guildPlaceholder": "Тег гільдії (Обов'язково)",
+        "guildWarning": "Гільдію обов'язково вказати та вона має бути відкритою!",
         "mightPlaceholder": "Точна міць (Напр: 1b 200m або 500m)",
         "recognizedMight": "✅ Розпізнано: {{might}}M. Ціна адаптована!",
         "usedForGifts": "Використано для подарунків:",
@@ -114,8 +141,8 @@ const resources = {
         "giftName": "Подарунки за {{amount}} Gems"
       },
       "special_page": {
-        "title": "Спеціальні пропозиції",
-        "subtitle": "Ексклюзивні набори, послуги та сапфіри. Виберіть товар, і ми доставимо його на ваш акаунт.",
+        "title": "Інші товари",
+        "subtitle": "Ексклюзивні набори, послуги та спеціальні товари. Виберіть товар, і ми доставимо його на ваш акаунт.",
         "loading": "Завантаження товарів...",
         "noItems": "Поки що немає доступних товарів.",
         "activeCode": "Діє код:",
@@ -130,7 +157,7 @@ const resources = {
       },
       "home": {
         "hero": {
-          "title": "Твій арсенал у",
+          "title": "LordTreasury",
           "subtitle": "Купуй ресурси, сапфіри та топові акаунти за найкращими цінами. Швидка доставка, гарантія безпеки та підтримка 24/7.",
           "btnResources": "Купити ресурси",
           "btnAccounts": "Переглянути акаунти"
@@ -138,15 +165,25 @@ const resources = {
         "trust": {
           "title1": "Миттєва видача",
           "desc1": "Відправляємо ресурси відразу після підтвердження оплати.",
-          "title2": "100% Безпека",
-          "desc2": "Чисті ресурси та акаунти без ризику бану від IGG.",
+          "title2": "100% Безпека та Надійність",
+          "desc2": "Повна конфіденційність, безпечна передача даних та перевірені активи.",
           "title3": "Підтримка 24/7",
           "desc3": "Завжди на зв'язку в Telegram для вирішення будь-яких питань."
+        },
+        "latestAccount": {
+          "sectionTitle": "Останнє надходження",
+          "sectionSubtitle": "Найновіший перевірений акаунт, готовий до швидкої передачі",
+          "badge": "🔥 Нове надходження",
+          "loading": "Завантаження актуальних пропозицій...",
+          "viewBtn": "Переглянути акаунт",
+          "allBtn": "Всі акаунти каталогу →",
+          "emptyTitle": "Каталог акаунтів оновлюється",
+          "emptyDesc": "Нові пропозиції перевіряються гарантом та додаються щоденно."
         }
       },
       "accounts": {
         "title": "Галерея Акаунтів",
-        "subtitle": "Топові акаунти Lords Mobile з перевіреною статистикою",
+        "subtitle": "Топові акаунти з перевіреною статистикою",
         "filter": {
           "all": "Всі",
           "active": "У продажу",
@@ -175,18 +212,56 @@ const resources = {
       "accountDetails": {
         "backToGallery": "Назад до галереї",
         "price": "Ціна",
+        "basePrice": "Звичайна ціна",
         "bind": "Прив'язка",
         "status": "Статус",
-        "description": "Опис",
+        "description": "Опис акаунта",
         "stats": "Характеристики",
+        "coreStats": "Основні характеристики",
+        "combatStats": "Бойові показники",
+        "customInventory": "Додатковий інвентар",
         "might": "Міць",
-        "troops": "Війська",
+        "castle": "Рівень замку",
+        "blessed": "Благословення",
+        "champ_gear": "Champ Gear",
         "heroes": "Герої",
+        "familiars": "Фамільяри",
         "artifacts": "Артефакти",
+        "attribute_lvl": "Рівень атрибутів",
+        "max_kd": "Макс. КД",
+        "troops": "Війська",
         "images": "Зображення",
         "addToCart": "Додати в кошик",
         "inCart": "У кошику",
-        "buyNow": "Купити зараз"
+        "buyNow": "Купити зараз",
+        "addToCompare": "До порівняння",
+        "inCompare": "У порівнянні",
+        "addToWishlist": "В улюблене",
+        "inWishlist": "В улюбленому",
+        "tabAtk": "Атака (ATK)",
+        "tabDef": "Захист (DEF)",
+        "tabHp": "Здоров'я (HP)",
+        "mixAtk": "Mix ATK",
+        "mixAtkBase": "Mix ATK (Base)",
+        "monoAtk": "Mono ATK",
+        "armyAtk": "Army ATK",
+        "armyHp": "Army HP",
+        "monoAtk": "Mono ATK",
+        "armyMixAtk": "Army Mix ATK",
+        "armyMonoAtk": "Army Mono ATK",
+        "mixDef": "Mix DEF",
+        "monoDef": "Mono DEF",
+        "armyMixDef": "Army Mix DEF",
+        "armyMonoDef": "Army Mono DEF",
+        "mixHp": "Mix HP",
+        "monoHp": "Mono HP",
+        "armyMixHp": "Army Mix HP",
+        "armyMonoHp": "Army Mono HP",
+        "leader": "Лідер",
+        "base": "База",
+        "verifiedBind": "Перевірена прив'язка",
+        "instantTransfer": "Швидка видача даних",
+        "supportGuarantee": "100% Гарантія безпеки та підтримка"
       },
       "resources": {
         "title": "Магазин Ресурсів",
@@ -201,7 +276,7 @@ const resources = {
       },
       "gems": {
         "title": "Сапфіри (Gems)",
-        "subtitle": "Вигідний курс на сапфіри Lords Mobile",
+        "subtitle": "Вигідний курс на ігрові сапфіри",
         "range": "Діапазон",
         "rate": "Курс",
         "basePrice": "Базова ціна",
@@ -211,7 +286,7 @@ const resources = {
         "totalPrice": "Загальна ціна"
       },
       "calculator": {
-        "title": "Калькулятор Lords Mobile",
+        "title": "Ігровий Калькулятор",
         "subtitle": "Розрахунок часу тренування, ресурсів та прискорювачів",
         "tabs": {
           "train": "Тренування T1-T4",
@@ -272,6 +347,9 @@ const resources = {
         "cashback": "Кешбек",
         "cashbackAuth": "Потрібна авторизація",
         "cashbackAvail": "Можна буде витратити",
+        "cashbackCompletedNotice": "Буде зараховано після статусу «Виконано»",
+        "cashbackBalanceOnlyNotice": "⚠️ Кешбек нараховується тільки при оплаті монетами сайту (з балансу)!",
+        "cashbackBalanceOnlyDesc": "Оберіть спосіб «Оплата з балансу», щоб отримати кешбек після виконання замовлення.",
         "payBalanceBtn": "Оплатити з балансу",
         "orderBtn": "Замовити зараз",
         "promoUsed": "Ви вже використовували цей промокод!",
@@ -288,8 +366,25 @@ const resources = {
         "gift": "Подарунок: {{value}}",
         "appliesTo": "Діє на: {{items}}",
         "appliesToEmpty": "Діє на визначені товари (додайте їх у кошик)",
-        "appliesToAll": "Діє на все замовлення",
-        "removePromo": "Видалити промокод"
+        "removePromo": "Видалити промокод",
+        "paymentMethodTitle": "Спосіб оплати",
+        "payFromBalance": "Оплата з балансу",
+        "payFromBalanceSub": "Монети сайту",
+        "available": "Доступно:",
+        "needAuth": "Потрібна авторизація",
+        "insufficient": "Недостатньо",
+        "notForAccounts": "Не для акаунтів",
+        "isTopup": "Поповнення",
+        "chatWithAdmin": "Чат з Адміністратором",
+        "chatPaymentDesc": "Пряма оплата (Крипта / Карта) після оформлення.",
+        "guildDiscount": "Гільдійська знижка",
+        "createTicketBtn": "Створити тікет на оплату",
+        "successChat": "Замовлення створено! Переходимо в чат для отримання реквізитів...",
+        "offlineTitle": "Увага! Офлайн-режим",
+        "offlineSubtext": "Ви можете сплатити замовлення зараз, і воно буде виконане першим у черзі.",
+        "guildPromoDesc": "Всі товари розраховано за собівартістю (Без націнки сайту).",
+        "priceForGuild": "Ціна для Своїх",
+        "item": "Товар"
       },
       "profile": {
         "title": "Мій Кабінет",
@@ -304,6 +399,7 @@ const resources = {
           "wishlist": "Улюблене",
           "payment": "Оплата",
           "referrals": "Реферали",
+          "cashback": "Ранг і кешбек",
           "notifications": "Сповіщення",
           "logout": "Вийти з акаунта"
         },
@@ -329,19 +425,32 @@ const resources = {
           "logoutOther": "Вийти з інших пристроїв",
           "current": "Поточний"
         },
+        "receipt": {
+          "title": "Електронний чек",
+          "method": "МЕТОД:",
+          "paid": "Сплачено"
+        },
         "orders": {
           "title": "Моя історія покупок",
           "empty": "Тут поки порожньо",
-          "emptyDesc": "Ви ще нічого не замовляли.",
+          "emptyDesc": "Ви ще нічого не замовляли. Час це виправити!",
           "toCatalog": "До каталогу",
           "orderNum": "Замовлення #",
           "items": "товар(ів)",
           "content": "Вміст замовлення:",
           "total": "Загальна сума:",
           "profit": "Прибуток:",
+          "item": "Товар",
+          "nickname": "Нікнейм:",
+          "supportChat": "Чат підтримки",
+          "chatEmpty": "Немає повідомлень. Напишіть щось, щоб почати діалог!",
+          "chatPlaceholder": "Повідомлення підтримці...",
           "status": {
             "new": "Нове",
+            "awaiting_payment": "Очікує оплати",
+            "paid_processing": "Оплачено (В роботі)",
             "processing": "В обробці",
+            "delivered": "Очікує підтвердження",
             "completed": "Виконано",
             "cancelled": "Скасовано"
           }
@@ -364,14 +473,62 @@ const resources = {
           "walletDesc": "Електронні гаманці"
         },
         "referrals": {
-          "title": "Запроси друга",
-          "desc": "Отримуйте 5% від кожної покупки ваших друзів прямо на свій баланс. Що більше друзів — то більше безкоштовних ресурсів!",
-          "copy": "Копіювати"
+          "title": "Реферальна програма",
+          "desc": "Запрошуйте друзів за своїм посиланням і отримуйте відсоток від їхніх покупок на свій баланс!",
+          "copy": "Копіювати",
+          "invitedFriends": "Запрошено друзів",
+          "earnedTotal": "Зароблено",
+          "whomInvited": "Кого ви запросили:",
+          "noInvitedYet": "Ви ще нікого не запросили. Поділіться своїм посиланням!",
+          "ordersCount": "замовлень",
+          "noOrdersYet": "Ще без замовлень",
+          "broughtYou": "Приніс вам",
+          "noProfit": "Без доходу",
+          "webLinkTitle": "Посилання на веб-сайт",
+          "tgLinkTitle": "Посилання на Telegram-бота",
+          "ratesTitle": "Ваші відсотки винагороди по категоріях",
+          "universalNote": "Універсальна система: діє для покупок на сайті та через Telegram-бота. Винагорода падає на баланс після завершення замовлення (статус «Виконано»)."
+        },
+        "cashback": {
+          "title": "Кешбек та ранги",
+          "subtitle": "Купуйте за монети сайту, підвищуйте ранг та отримуйте кешбек на свій баланс!",
+          "currentRank": "Ваш поточний ранг",
+          "totalSpent": "Сума покупок за весь час",
+          "toNextRank": "До рангу {{rank}} залишилося:",
+          "maxRankAchieved": "👑 Ви досягли максимального рангу Emperor з найвищими ставками кешбеку!",
+          "ratesTitle": "Ваші активні відсотки кешбеку",
+          "rss": "Ресурси (RSS)",
+          "gems": "Сапфіри (Gems)",
+          "other": "Інші товари",
+          "account": "Акаунти",
+          "noticeTitle": "Правила нарахування винагород",
+          "rule1": "Кешбек нараховується виключно при оплаті монетами сайту (з внутрішнього балансу).",
+          "rule2": "Монети кешбеку та реферальні бонуси потрапляють на баланс тільки після переведення замовлення в статус «Виконано».",
+          "roadmapTitle": "Усі 5 рангів кешбеку",
+          "threshold": "Поріг покупок:",
+          "statusCurrent": "Поточний",
+          "statusUnlocked": "Досягнуто",
+          "statusLocked": "Заблоковано"
         },
         "notifications": {
           "title": "Центр сповіщень",
           "markRead": "Позначити всі як прочитані",
-          "empty": "У вас поки немає нових сповіщень."
+          "empty": "У вас поки немає нових сповіщень.",
+          "orderUpdated": "Замовлення #{{id}} оновлено",
+          "orderCreated": "Замовлення оформлено!",
+          "orderCreatedDesc": "Ваше замовлення #{{id}} створено. Перейдіть у чат для деталей.",
+          "orderCompleted": "Замовлення успішно виконано! Дякуємо за покупку.",
+          "orderDelivered": "Ваше замовлення доставлено! Будь ласка, перевірте товар та підтвердіть отримання.",
+          "paymentReceived": "Оплату отримано! Ваше замовлення взято в роботу.",
+          "awaitingPayment": "Замовлення створено. Очікуємо на вашу оплату.",
+          "orderCancelled": "На жаль, ваше замовлення було скасовано.",
+          "orderStatusChanged": "Статус замовлення змінено.",
+          "welcomeTitle": "Ласкаво просимо!",
+          "welcomeDesc": "Ласкаво просимо в LordTreasury!",
+          "tgLinkedTitle": "Telegram прив'язано",
+          "tgLinkedDesc": "Ваш Telegram акаунт успішно підключено! Тепер сповіщення та баланс синхронізовані.",
+          "balanceUpdatedTitle": "Баланс змінено",
+          "balanceUpdatedDesc": "Ваш баланс було змінено адміністратором. Поточний баланс: ${{balance}}"
         },
         "login": {
           "title": "Вхід у кабінет",
@@ -561,6 +718,7 @@ const resources = {
           "rssTitle": "Ресурси (RSS)",
           "addBtn": "Додати",
           "packNameLabel": "Назва пакунку",
+          "packDescLabel": "Опис паку (на сайті та в TG)",
           "costLabel": "Собіварт.",
           "priceLabel": "Ціна",
           "gemsTitle": "Сапфіри (Gems)",
@@ -591,7 +749,7 @@ const resources = {
           "finalPriceLabel": "Фінальна ціна для клієнта:",
           "receiveDataTitle": "Дані для отримання",
           "receiveDataDesc": "Додайте поля, які клієнт має заповнити при покупці цього товару.",
-          "fieldPlaceholder": "Напр: Ваш IGG ID...",
+          "fieldPlaceholder": "Напр: Ваш ID / нікнейм...",
           "addBtn": "Додати",
           "itemsTitle": "Ваші товари",
           "noItems": "Ви ще не додали жодного товару"
@@ -619,19 +777,19 @@ const resources = {
       },
       "footer": {
         "about": "Про нас",
-        "aboutDesc": "Ваш надійний партнер у світі Lords Mobile. Ми надаємо безпечні послуги з продажу акаунтів, ресурсів та сапфірів з гарантією якості.",
+        "aboutDesc": "Ваш надійний партнер у сфері ігрових сервісів. Ми надаємо безпечні послуги з продажу акаунтів, ресурсів та сапфірів з гарантією якості.",
         "navTitle": "Навігація",
         "navHome": "Головна",
         "navAccounts": "Галерея акаунтів",
         "navResources": "Купити ресурси",
-        "navSpecial": "Спеціальні пропозиції",
+        "navSpecial": "Інші товари",
         "clientTitle": "Клієнтам",
         "clientGuarantees": "Гарантії та FAQ",
         "clientTerms": "Умови використання",
         "clientPrivacy": "Політика конфіденційності",
         "supportTitle": "Підтримка",
         "tgSupport": "Telegram Підтримка",
-        "copyright": "© {{year}} LORDS SHOP. Всі права захищені. Не є офіційним продуктом IGG."
+        "copyright": "© {{year}} LordTreasury. Всі права захищені."
       },
       "guarantees": {
         "title": "Гарант-Сервіс",
@@ -658,22 +816,90 @@ const resources = {
         "faqTitle": "Часті запитання (FAQ)",
         "faqs": [
           {
-            "question": "Як довго триває процес передачі акаунта?",
-            "answer": "Зазвичай передача акаунта займає від 15 до 60 хвилин після підтвердження оплати. У деяких випадках (наприклад, якщо потрібна відв'язка складних сервісів) це може зайняти до 24 годин. Ми завжди тримаємо вас у курсі."
+            "question": "Як довго триває процес угоди?",
+            "answer": "Зазвичай угода може тривати від 20 хвилин до кількох робочих днів залежно від замовлення та згоди обох сторін, щоб клієнти були задоволені результатом і була забезпечена максимальна безпека."
           },
           {
             "question": "Які способи оплати ви приймаєте?",
-            "answer": "На даний момент ми працюємо з криптовалютою (USDT TRC20/ERC20) для максимальної безпеки та швидкості, а також приймаємо перекази на банківські картки (Visa/Mastercard) за попередньою домовленістю."
+            "answer": "Ми працюємо з криптовалютою (USDT TRC20/BEP20) для максимальної безпеки та конфіденційності, а також приймаємо оплату на картки виключно українських банків і до певного ліміту (за обов'язковою попередньою домовленістю в чаті підтримки)."
           },
           {
-            "question": "Що робити, якщо акаунт не відповідає опису?",
-            "answer": "Наш гарант особисто перевіряє акаунт перед передачею. Якщо ми виявимо розбіжності з описом на сайті (менше міці, відсутність заявлених героїв), угода скасовується, і вам повертаються всі кошти у повному обсязі."
-          },
-          {
-            "question": "Чи можна купити ресурси без передачі пароля?",
-            "answer": "Так! Продаж ресурсів та сапфірів (подарунками) відбувається без доступу до вашого акаунта. Вам потрібно лише вказати ваш ігровий нікнейм, координати або тег гільдії."
+            "question": "Що робити, якщо товар чи акаунт не відповідає опису?",
+            "answer": "Наш гарант ретельно перевіряє кожне замовлення перед завершенням угоди. Якщо виявлено невідповідність заявленим даним, угода негайно скасовується, а кошти повертаються покупцю в повному обсязі."
           }
         ]
+      },
+      "terms": {
+        "title": "Умови використання",
+        "subtitle": "Офіційні правила надання послуг гарант-сервісу та торгової платформи LordTreasury",
+        "lastUpdated": "Останнє оновлення: Жовтень 2026",
+        "sections": {
+          "introTitle": "1. Загальні положення",
+          "introText": "Користуючись послугами сайту LordTreasury, ви підтверджуєте свою повну згоду з цими Умовами. Сервіс виступає незалежним посередником (гарантом) для забезпечення безпеки угод між покупцями та продавцями.",
+          "serviceTitle": "2. Порядок надання послуг",
+          "serviceText": "Сервіс здійснює верифікацію цифрових товарів та акаунтів, безпечне утримання коштів до повного виконання зобов'язань та допомогу в переприв'язці даних. Тривалість угоди зазвичай становить від 20 хвилин до кількох робочих днів залежно від складності процедури переприв'язки та узгодження обох сторін.",
+          "paymentTitle": "3. Оплата та фінансові ліміти",
+          "paymentText": "Оплата приймається у криптовалюті (USDT), а також за допомогою карток виключно банків України (до встановленого сервісом ліміту та за обов'язковим попереднім узгодженням через оператора в чаті). Платежі з карток іноземних банків не підтримуються.",
+          "cancellationTitle": "4. Відмова в обслуговуванні та скасування замовлення",
+          "cancellationText": "Адміністрація LordTreasury залишає за собою беззаперечне право відмовити в обслуговуванні, призупинити або в односторонньому порядку скасувати будь-яку угоду чи замовлення без пояснення причин. У разі скасування замовлення з ініціативи адміністрації всі фактично сплачені кошти повертаються покупцю в повному обсязі тим самим способом оплати або за взаємною домовленістю.",
+          "warrantyTitle": "5. Гарантії та повернення",
+          "warrantyText": "Якщо під час перевірки гарантом виявлено невідповідність характеристик акаунта заявленим на сайті, замовлення скасовується з миттєвим повним поверненням коштів. Після підтвердження покупцем успішного входу та завершення переприв'язки подальша відповідальність за збереження доступу покладається на покупця.",
+          "supportTitle": "6. Контакти підтримки",
+          "supportText": "Всі консультації та супровід угод здійснюються виключно через офіційні канали підтримки сервісу в Telegram."
+        }
+      },
+      "privacy": {
+        "title": "Політика конфіденційності",
+        "subtitle": "Як ми забезпечуємо конфіденційність, захищаємо ваші персональні та платіжні дані",
+        "lastUpdated": "Останнє оновлення: Жовтень 2026",
+        "sections": {
+          "collectTitle": "1. Які дані ми збираємо",
+          "collectText": "Ми збираємо мінімально необхідний обсяг даних для обробки замовлення: ігровий нікнейм, контактний Telegram-юзернейм, історію замовлень та технічні файли cookie для підтримки авторизації й обраної колірної теми.",
+          "usageTitle": "2. Мета використання даних",
+          "usageText": "Ваші дані використовуються виключно для виконання замовлення, комунікації під час гарант-угоди та забезпечення стабільної безпечної роботи сайту.",
+          "sharingTitle": "3. Передача даних третім особам",
+          "sharingText": "Ми ніколи не продаємо і не передаємо ваші персональні або ігрові дані стороннім маркетинговим компаніям чи іншим третім особам. Дані передаються між покупцем і продавцем лише в обсязі, необхідному для переприв'язки акаунта під наглядом гаранта.",
+          "cookiesTitle": "4. Файли Cookie",
+          "cookiesText": "Сайт використовує обов'язкові технічні кукі (сесія, кошик, мова, колірна тема). Аналітичні кукі збираються виключно за вашої попередньої згоди через банер сповіщення про Cookie.",
+          "securityTitle": "5. Захист інформації",
+          "securityText": "Вся взаємодія захищена протоколом шифрування SSL/TLS. Паролі облікових записів зберігаються в хешованому вигляді із застосуванням сучасних криптографічних алгоритмів (bcrypt)."
+        }
+      },
+      "compare": {
+        "title": "Порівняння та Оцінка Акаунтів",
+        "subtitle": "Оцінка сили за пресетами стилю гри, сортування в 1 клік та швидка дуель 1 vs 1.",
+        "tableTab": "Таблиця",
+        "duelTab": "Дуель 1 vs 1",
+        "clear": "Очистити",
+        "styleLabel": "Стиль оцінки та роль у грі:",
+        "emptyTitle": "Немає акаунтів для порівняння",
+        "emptyDesc": "Додайте акаунти в порівняння через іконку терезів у каталозі або відкрийте Дуель 1 vs 1.",
+        "goToAccounts": "Перейти до акаунтів",
+        "openDuel": "Відкрити Дуель 1 vs 1",
+        "criteriaHeader": "Критерії Оцінки",
+        "criteriaDesc": "Клікніть на критерій, щоб перенести найкращий акаунт на 1-ше місце 🔝",
+        "resetSort": "Скинути сортування",
+        "mobileSwipeHint": "👈 Гортайте вбік для перегляду та порівняння акаунтів 👉",
+        "topChoice": "Переможець за вибором",
+        "details": "Детальніше",
+        "addToCart": "В кошик",
+        "freeSlot": "Вільне місце для порівняння",
+        "powerCriteria": "Критерії Оцінки Ринкової Сили",
+        "heroesSection": "Герої, Фамільяри та інше",
+        "link": "Link",
+        "tags": "Tags",
+        "ratingSummary": "🏆 РЕЙТИНГ & ВИГІДНІСТЬ",
+        "duelTitle": "Вердикт Дуелі: Хто виграє?",
+        "expertAdvice": "Порада експерта:",
+        "duelRoundsWon": "перемог у раундах",
+        "duelWinner": "Переможець за сумою характеристик!"
+      },
+      "easterEgg": {
+        "title": "Ти потрапив у гендзюцу",
+        "quote": "Під час нескінченної подорожі ти знайшов записку...",
+        "secretCodeLabel": "Секретний промокод",
+        "darkness": "Темрява поглинула твій шанс...",
+        "dispel": "Розвіяти ілюзію"
       }
     }
   },
@@ -685,6 +911,7 @@ const resources = {
         "resources": "RESOURCES",
         "sapphires": "SAPPHIRES",
         "gems": "GEMS",
+        "otherItems": "OTHER ITEMS",
         "accounts": "ACCOUNTS",
         "other": "OTHER",
         "guarantees": "GUARANTEES",
@@ -698,15 +925,41 @@ const resources = {
         "login": "Login",
         "logout": "Logout",
         "admin": "Admin",
-        "balance": "Balance"
+        "balance": "Balance",
+        "language": "Language"
+      },
+      "themes": {
+        "title": "Site Theme",
+        "variants": "4 themes",
+        "buttonTitle": "Theme: {{name}}. Click to select",
+        "blue": {
+          "name": "Blue",
+          "desc": "Calm"
+        },
+        "red": {
+          "name": "Red",
+          "desc": "Battle"
+        },
+        "pink": {
+          "name": "Pink & White",
+          "desc": "Sakura"
+        },
+        "monochrome": {
+          "name": "Monochrome",
+          "desc": "Classic"
+        }
       },
       "orderModal": {
         "title": "Checkout: {{name}}",
         "nickname": "Nickname",
         "guild": "Guild",
         "rssWarning": "⚠️ Guild must be open!",
+        "rssWarningFull": "⚠️ Player must be away from the Fort and be in an open guild (more than 20 slots, no might limit) in their home kingdom!",
+        "rssDataLabel": "Your details (Guild, Nickname, Coordinates)",
+        "rssPlaceholder": "[xxx]name123 K:1111 X:111 Y:111",
+        "ticketInfo": "After placing the order, a ticket will be created in Telegram. As soon as an administrator is available, they will reply and fulfill your order.",
         "coordinates": "Castle Coordinates",
-        "confirm": "Confirm"
+        "confirm": "Add to Cart"
       },
       "topup": {
         "title": "Balance Top-Up",
@@ -771,8 +1024,8 @@ const resources = {
         "totalToPay": "Total to pay:",
         "gameDataTitle": "Your Game Data",
         "nicknamePlaceholder": "Player Nickname (Eng)",
-        "guildPlaceholder": "Guild (optional)",
-        "guildWarning": "The guild must be open! Otherwise we cannot deliver the order.",
+        "guildPlaceholder": "Guild Tag (Required)",
+        "guildWarning": "Guild is required and must be open to deliver!",
         "mightPlaceholder": "Exact might (E.g.: 1b 200m or 500m)",
         "recognizedMight": "✅ Recognized: {{might}}M. Rate adapted!",
         "usedForGifts": "Used for gifts:",
@@ -790,8 +1043,8 @@ const resources = {
         "giftName": "Gifts for {{amount}} Gems"
       },
       "special_page": {
-        "title": "Special Offers",
-        "subtitle": "Exclusive packs, services, and sapphires. Choose an item, and we'll deliver it to your account.",
+        "title": "Other Items",
+        "subtitle": "Exclusive packs, services, and special items. Choose an item, and we'll deliver it to your account.",
         "loading": "Loading items...",
         "noItems": "No items available at the moment.",
         "activeCode": "Code applied:",
@@ -806,7 +1059,7 @@ const resources = {
       },
       "home": {
         "hero": {
-          "title": "Your arsenal in",
+          "title": "LordTreasury",
           "subtitle": "Buy resources, gems, and top accounts at the best prices. Fast delivery, guaranteed security, and 24/7 support.",
           "btnResources": "Buy Resources",
           "btnAccounts": "View Accounts"
@@ -814,15 +1067,25 @@ const resources = {
         "trust": {
           "title1": "Instant Delivery",
           "desc1": "We send resources immediately after payment confirmation.",
-          "title2": "100% Security",
-          "desc2": "Clean resources and accounts with no risk of IGG ban.",
+          "title2": "100% Security & Reliability",
+          "desc2": "Full privacy, secure data transfer, and verified assets.",
           "title3": "24/7 Support",
           "desc3": "Always available on Telegram to resolve any issues."
+        },
+        "latestAccount": {
+          "sectionTitle": "Latest Arrival",
+          "sectionSubtitle": "The newest verified account ready for instant transfer",
+          "badge": "🔥 New Arrival",
+          "loading": "Loading current offers...",
+          "viewBtn": "View Account",
+          "allBtn": "All catalog accounts →",
+          "emptyTitle": "Account catalog updating",
+          "emptyDesc": "New offers are verified by our guarantor and added daily."
         }
       },
       "accounts": {
         "title": "Account Gallery",
-        "subtitle": "Top Lords Mobile accounts with verified stats",
+        "subtitle": "Top accounts with verified stats",
         "filter": {
           "all": "All",
           "active": "On Sale",
@@ -851,18 +1114,56 @@ const resources = {
       "accountDetails": {
         "backToGallery": "Back to Gallery",
         "price": "Price",
+        "basePrice": "Regular Price",
         "bind": "Binding",
         "status": "Status",
-        "description": "Description",
+        "description": "Account Description",
         "stats": "Stats",
+        "coreStats": "Core Statistics",
+        "combatStats": "Combat Statistics",
+        "customInventory": "Inventory & Extras",
         "might": "Might",
-        "troops": "Troops",
+        "castle": "Castle Level",
+        "blessed": "Blessed",
+        "champ_gear": "Champ Gear",
         "heroes": "Heroes",
+        "familiars": "Familiars",
         "artifacts": "Artifacts",
+        "attribute_lvl": "Attribute Level",
+        "max_kd": "Max KD",
+        "troops": "Troops",
         "images": "Images",
         "addToCart": "Add to Cart",
         "inCart": "In Cart",
-        "buyNow": "Buy Now"
+        "buyNow": "Buy Now",
+        "addToCompare": "Compare",
+        "inCompare": "In Compare",
+        "addToWishlist": "Wishlist",
+        "inWishlist": "In Wishlist",
+        "tabAtk": "Attack (ATK)",
+        "tabDef": "Defense (DEF)",
+        "tabHp": "Health (HP)",
+        "mixAtk": "Mix ATK",
+        "mixAtkBase": "Mix ATK (Base)",
+        "monoAtk": "Mono ATK",
+        "armyAtk": "Army ATK",
+        "armyHp": "Army HP",
+        "monoAtk": "Mono ATK",
+        "armyMixAtk": "Army Mix ATK",
+        "armyMonoAtk": "Army Mono ATK",
+        "mixDef": "Mix DEF",
+        "monoDef": "Mono DEF",
+        "armyMixDef": "Army Mix DEF",
+        "armyMonoDef": "Army Mono DEF",
+        "mixHp": "Mix HP",
+        "monoHp": "Mono HP",
+        "armyMixHp": "Army Mix HP",
+        "armyMonoHp": "Army Mono HP",
+        "leader": "Leader",
+        "base": "Base",
+        "verifiedBind": "Verified Binding",
+        "instantTransfer": "Fast Transfer",
+        "supportGuarantee": "100% Security Guarantee & 24/7 Support"
       },
       "resources": {
         "title": "Resource Shop",
@@ -877,7 +1178,7 @@ const resources = {
       },
       "gems": {
         "title": "Gems",
-        "subtitle": "Great rates on Lords Mobile gems",
+        "subtitle": "Great rates on game gems",
         "range": "Range",
         "rate": "Rate",
         "basePrice": "Base Price",
@@ -887,7 +1188,7 @@ const resources = {
         "totalPrice": "Total Price"
       },
       "calculator": {
-        "title": "Lords Mobile Calculator",
+        "title": "Game Calculator",
         "subtitle": "Calculate training time, resources, and speedups",
         "tabs": {
           "train": "T1-T4 Training",
@@ -948,6 +1249,9 @@ const resources = {
         "cashback": "Cashback",
         "cashbackAuth": "Authorization required",
         "cashbackAvail": "You will earn",
+        "cashbackCompletedNotice": "Credited after 'Completed' status",
+        "cashbackBalanceOnlyNotice": "⚠️ Cashback is awarded only when paying with site coins (from balance)!",
+        "cashbackBalanceOnlyDesc": "Select 'Pay from balance' to receive cashback after order completion.",
         "payBalanceBtn": "Pay with balance",
         "orderBtn": "Order Now",
         "promoUsed": "You have already used this promo code!",
@@ -964,8 +1268,25 @@ const resources = {
         "gift": "Gift: {{value}}",
         "appliesTo": "Applies to: {{items}}",
         "appliesToEmpty": "Applies to specific items (add them to cart)",
-        "appliesToAll": "Applies to the entire order",
-        "removePromo": "Remove promo code"
+        "removePromo": "Remove promo code",
+        "paymentMethodTitle": "Payment Method",
+        "payFromBalance": "Pay from Balance",
+        "payFromBalanceSub": "Site Coins",
+        "available": "Available:",
+        "needAuth": "Login required",
+        "insufficient": "Insufficient",
+        "notForAccounts": "Not for accounts",
+        "isTopup": "Top-up",
+        "chatWithAdmin": "Chat with Administrator",
+        "chatPaymentDesc": "Direct payment (Crypto / Card) after checkout.",
+        "guildDiscount": "Guild discount",
+        "createTicketBtn": "Create payment ticket",
+        "successChat": "Order created! Redirecting to chat for payment details...",
+        "offlineTitle": "Notice! Offline Mode",
+        "offlineSubtext": "You can pay for the order now, and it will be processed first in line.",
+        "guildPromoDesc": "All items calculated at base cost (No store markup).",
+        "priceForGuild": "Guild Member Price",
+        "item": "Item"
       },
       "profile": {
         "title": "My Account",
@@ -980,6 +1301,7 @@ const resources = {
           "wishlist": "Wishlist",
           "payment": "Payment",
           "referrals": "Referrals",
+          "cashback": "Rank & Cashback",
           "notifications": "Notifications",
           "logout": "Logout"
         },
@@ -1015,9 +1337,17 @@ const resources = {
           "content": "Order Content:",
           "total": "Total Amount:",
           "profit": "Profit:",
+          "item": "Item",
+          "nickname": "Nickname:",
+          "supportChat": "Support Chat",
+          "chatEmpty": "No messages yet. Send a message to start conversation!",
+          "chatPlaceholder": "Message for support...",
           "status": {
             "new": "New",
+            "awaiting_payment": "Awaiting Payment",
+            "paid_processing": "Paid (In Progress)",
             "processing": "Processing",
+            "delivered": "Awaiting Confirmation",
             "completed": "Completed",
             "cancelled": "Cancelled"
           }
@@ -1040,14 +1370,62 @@ const resources = {
           "walletDesc": "E-Wallets"
         },
         "referrals": {
-          "title": "Invite a Friend",
-          "desc": "Get 5% of every purchase your friends make directly to your balance. The more friends, the more free resources!",
-          "copy": "Copy"
+          "title": "Referral Program",
+          "desc": "Invite friends using your link and get a percentage of their purchases directly to your balance!",
+          "copy": "Copy",
+          "invitedFriends": "Friends Invited",
+          "earnedTotal": "Earned",
+          "whomInvited": "Invited by you:",
+          "noInvitedYet": "You haven't invited anyone yet. Share your link!",
+          "ordersCount": "orders",
+          "noOrdersYet": "No orders yet",
+          "broughtYou": "Brought you",
+          "noProfit": "No profit yet",
+          "webLinkTitle": "Website Invite Link",
+          "tgLinkTitle": "Telegram Bot Invite Link",
+          "ratesTitle": "Your reward rates by category",
+          "universalNote": "Universal system: works for purchases on the website and through the Telegram bot. Rewards are credited upon order completion."
+        },
+        "cashback": {
+          "title": "Cashback & Tiers",
+          "subtitle": "Pay with site coins, level up your rank and get cashback directly to your balance!",
+          "currentRank": "Your Current Rank",
+          "totalSpent": "Total Purchases (All Time)",
+          "toNextRank": "Remaining to {{rank}}:",
+          "maxRankAchieved": "👑 You have reached the maximum Emperor rank with highest cashback rates!",
+          "ratesTitle": "Your Active Cashback Rates",
+          "rss": "Resources (RSS)",
+          "gems": "Sapphires (Gems)",
+          "other": "Other Goods",
+          "account": "Accounts",
+          "noticeTitle": "Reward Rules",
+          "rule1": "Cashback is awarded exclusively when paying with site coins (from internal balance).",
+          "rule2": "Cashback coins and referral bonuses are credited to your balance only after order status is 'Completed'.",
+          "roadmapTitle": "All 5 Cashback Tiers",
+          "threshold": "Spending Threshold:",
+          "statusCurrent": "Current",
+          "statusUnlocked": "Unlocked",
+          "statusLocked": "Locked"
         },
         "notifications": {
           "title": "Notification Center",
           "markRead": "Mark all as read",
-          "empty": "You have no new notifications yet."
+          "empty": "You have no new notifications yet.",
+          "orderUpdated": "Order #{{id}} updated",
+          "orderCreated": "Order created!",
+          "orderCreatedDesc": "Order #{{id}} created. Go to chat for details.",
+          "orderCompleted": "Order completed successfully! Thank you for your purchase.",
+          "orderDelivered": "Your order is delivered! Please check the item and confirm receipt.",
+          "paymentReceived": "Payment received! Your order is in progress.",
+          "awaitingPayment": "Order created. Awaiting your payment.",
+          "orderCancelled": "Unfortunately, your order has been cancelled.",
+          "orderStatusChanged": "Order status changed.",
+          "welcomeTitle": "Welcome!",
+          "welcomeDesc": "Welcome to LordTreasury!",
+          "tgLinkedTitle": "Telegram linked",
+          "tgLinkedDesc": "Your Telegram account has been linked! Notifications and balance are now synced.",
+          "balanceUpdatedTitle": "Balance updated",
+          "balanceUpdatedDesc": "Your balance has been adjusted by an administrator. Current balance: ${{balance}}"
         },
         "login": {
           "title": "Account Login",
@@ -1237,6 +1615,7 @@ const resources = {
           "rssTitle": "Resources (RSS)",
           "addBtn": "Add",
           "packNameLabel": "Pack Name",
+          "packDescLabel": "Pack Description (on site and TG)",
           "costLabel": "Cost",
           "priceLabel": "Price",
           "gemsTitle": "Gems (Rates)",
@@ -1267,7 +1646,7 @@ const resources = {
           "finalPriceLabel": "Final price for client:",
           "receiveDataTitle": "Receiving Data",
           "receiveDataDesc": "Add fields the client must fill out when purchasing this item.",
-          "fieldPlaceholder": "E.g.: Your IGG ID...",
+          "fieldPlaceholder": "E.g.: Your ID / Nickname...",
           "addBtn": "Add",
           "itemsTitle": "Your Items",
           "noItems": "You haven't added any items yet"
@@ -1295,19 +1674,19 @@ const resources = {
       },
       "footer": {
         "about": "About Us",
-        "aboutDesc": "Your reliable partner in the Lords Mobile world. We provide safe account, resource, and sapphire sales services with quality guarantee.",
+        "aboutDesc": "Your reliable partner in gaming services. We provide safe account, resource, and sapphire sales services with quality guarantee.",
         "navTitle": "Navigation",
         "navHome": "Home",
         "navAccounts": "Account Gallery",
         "navResources": "Buy Resources",
-        "navSpecial": "Special Offers",
+        "navSpecial": "Other Items",
         "clientTitle": "For Clients",
         "clientGuarantees": "Guarantees & FAQ",
         "clientTerms": "Terms of Service",
         "clientPrivacy": "Privacy Policy",
         "supportTitle": "Support",
         "tgSupport": "Telegram Support",
-        "copyright": "© {{year}} LORDS SHOP. All rights reserved. Not an official IGG product."
+        "copyright": "© {{year}} LordTreasury. All rights reserved."
       },
       "guarantees": {
         "title": "Guarantee Service",
@@ -1334,22 +1713,90 @@ const resources = {
         "faqTitle": "Frequently Asked Questions (FAQ)",
         "faqs": [
           {
-            "question": "How long does the account transfer process take?",
-            "answer": "Usually the account transfer takes from 15 to 60 minutes after payment confirmation. In some cases (for example, if you need to unbind complex services) it may take up to 24 hours. We always keep you informed."
+            "question": "How long does a transaction usually take?",
+            "answer": "Usually, a transaction takes from 20 minutes to several business days depending on the order specifics and agreement of both parties, ensuring customer satisfaction and maximum security."
           },
           {
             "question": "What payment methods do you accept?",
-            "answer": "We currently work with cryptocurrency (USDT TRC20/ERC20) for maximum security and speed, and also accept bank card transfers (Visa/Mastercard) by prior arrangement."
+            "answer": "We accept cryptocurrency (USDT TRC20/BEP20) for maximum security and privacy, as well as bank cards issued strictly by Ukrainian banks and up to a certain limit (subject to mandatory prior arrangement in support chat)."
           },
           {
-            "question": "What to do if the account does not match the description?",
-            "answer": "Our guarantor personally checks the account before transfer. If we find discrepancies with the description on the site (less might, missing heroes), the deal is canceled and you get a full refund."
-          },
-          {
-            "question": "Can I buy resources without giving my password?",
-            "answer": "Yes! Sale of resources and sapphires (as gifts) happens without access to your account. You only need to provide your in-game nickname, coordinates or guild tag."
+            "question": "What if the item or account does not match the description?",
+            "answer": "Our guarantor thoroughly verifies every order before completion. If any discrepancy with the description is detected, the transaction is cancelled and a full refund is issued immediately."
           }
         ]
+      },
+      "terms": {
+        "title": "Terms of Service",
+        "subtitle": "Official rules and terms of the LordTreasury escrow and marketplace platform",
+        "lastUpdated": "Last updated: October 2026",
+        "sections": {
+          "introTitle": "1. General Provisions",
+          "introText": "By using the LordTreasury platform, you confirm your full agreement with these Terms. The service acts as an independent intermediary (guarantor) to ensure transaction safety between buyers and sellers.",
+          "serviceTitle": "2. Provision of Services",
+          "serviceText": "The service verifies digital assets and accounts, holds funds securely until full fulfillment of mutual obligations, and assists with data re-binding. Transactions typically take between 20 minutes and several business days depending on order complexity and agreement of both parties.",
+          "paymentTitle": "3. Payment and Financial Limits",
+          "paymentText": "Payments are accepted in cryptocurrency (USDT) as well as bank cards issued exclusively by Ukrainian banks (up to a set limit and strictly subject to prior agreement with an operator via chat). Non-Ukrainian bank cards are not supported.",
+          "cancellationTitle": "4. Right to Refuse Service and Order Cancellation",
+          "cancellationText": "The LordTreasury administration reserves the absolute right to refuse service, suspend, or unilaterally cancel any order or transaction at any stage without giving reasons. In the event of order cancellation initiated by administration, all paid funds will be refunded to the buyer in full via the original payment method or upon mutual agreement.",
+          "warrantyTitle": "5. Warranties and Refunds",
+          "warrantyText": "If during verification the guarantor detects discrepancies with the site description, the order is cancelled with an immediate 100% refund. Once the buyer confirms successful receipt and data re-binding is complete, responsibility for account security rests with the buyer.",
+          "supportTitle": "6. Support and Inquiries",
+          "supportText": "All support and transaction assistance are provided strictly through our official Telegram support channel."
+        }
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "subtitle": "How we safeguard your privacy, personal details, and transaction security",
+        "lastUpdated": "Last updated: October 2026",
+        "sections": {
+          "collectTitle": "1. Information We Collect",
+          "collectText": "We collect only minimal necessary data required for order processing: in-game nickname, Telegram username, order history, and technical cookies for authentication and UI preferences.",
+          "usageTitle": "2. Use of Information",
+          "usageText": "Your information is used exclusively to fulfill orders, facilitate communication during escrow transactions, and ensure platform security.",
+          "sharingTitle": "3. Third-Party Disclosure",
+          "sharingText": "We never sell or disclose your personal or gaming data to third-party marketing companies. Data is shared between buyer and seller only to the extent required for account re-binding under guarantor supervision.",
+          "cookiesTitle": "4. Cookies Policy",
+          "cookiesText": "Our website utilizes essential cookies (session, shopping cart, language, theme). Analytical cookies are processed only with your explicit consent via the Cookie banner.",
+          "securityTitle": "5. Data Security",
+          "securityText": "All communication is protected using SSL/TLS encryption. Account passwords are encrypted using modern cryptographic hashing standards (bcrypt)."
+        }
+      },
+      "compare": {
+        "title": "Account Comparison & Valuation",
+        "subtitle": "Power scoring by playstyle presets, 1-click sorting, and fast 1 vs 1 duel.",
+        "tableTab": "Table",
+        "duelTab": "1 vs 1 Duel",
+        "clear": "Clear",
+        "styleLabel": "Valuation preset & gameplay role:",
+        "emptyTitle": "No accounts to compare",
+        "emptyDesc": "Add accounts to comparison using the scale icon in the catalog or open 1 vs 1 Duel.",
+        "goToAccounts": "Go to Accounts",
+        "openDuel": "Open 1 vs 1 Duel",
+        "criteriaHeader": "Evaluation Criteria",
+        "criteriaDesc": "Click any criterion to move the best account to 1st place 🔝",
+        "resetSort": "Reset sorting",
+        "mobileSwipeHint": "👈 Swipe sideways to compare accounts 👉",
+        "topChoice": "Winner by selection",
+        "details": "Details",
+        "addToCart": "Add to Cart",
+        "freeSlot": "Free comparison slot",
+        "powerCriteria": "Market Power Scoring Criteria",
+        "heroesSection": "Hero, Fam and Other",
+        "link": "Link",
+        "tags": "Tags",
+        "ratingSummary": "🏆 RATING & VALUE",
+        "duelTitle": "Duel Verdict: Who Wins?",
+        "expertAdvice": "Expert advice:",
+        "duelRoundsWon": "round wins",
+        "duelWinner": "Winner by overall stats!"
+      },
+      "easterEgg": {
+        "title": "You have fallen into genjutsu",
+        "quote": "During an endless journey, you found a note...",
+        "secretCodeLabel": "Secret Promocode",
+        "darkness": "Darkness has consumed your chance...",
+        "dispel": "Dispel the illusion"
       }
     }
   },
@@ -1361,6 +1808,7 @@ const resources = {
         "resources": "RESSOURCEN",
         "sapphires": "SAPHIRE",
         "gems": "EDELSTEINE",
+        "otherItems": "ANDERE ARTIKEL",
         "accounts": "ACCOUNTS",
         "other": "SONSTIGES",
         "guarantees": "GARANTIEN",
@@ -1374,15 +1822,41 @@ const resources = {
         "login": "Anmelden",
         "logout": "Abmelden",
         "admin": "Admin",
-        "balance": "Guthaben"
+        "balance": "Guthaben",
+        "language": "Sprache"
+      },
+      "themes": {
+        "title": "Website-Design",
+        "variants": "4 Designs",
+        "buttonTitle": "Design: {{name}}. Klicken zum Auswählen",
+        "blue": {
+          "name": "Blau",
+          "desc": "Ruhig"
+        },
+        "red": {
+          "name": "Rot",
+          "desc": "Kampf"
+        },
+        "pink": {
+          "name": "Rosa & Weiß",
+          "desc": "Sakura"
+        },
+        "monochrome": {
+          "name": "Monochrom",
+          "desc": "Klassisch"
+        }
       },
       "orderModal": {
         "title": "Kasse: {{name}}",
         "nickname": "Benutzername",
         "guild": "Gilde",
         "rssWarning": "⚠️ Gilde muss offen sein!",
+        "rssWarningFull": "⚠️ Der Spieler muss weit vom Fort entfernt sein und sich in einer offenen Gilde (mehr als 20 Plätze ohne Machtbegrenzung) im eigenen Königreich befinden!",
+        "rssDataLabel": "Ihre Daten (Gilde, Nickname, Koordinaten)",
+        "rssPlaceholder": "[xxx]name123 K:1111 X:111 Y:111",
+        "ticketInfo": "Nach der Bestellung wird ein Ticket in Telegram erstellt. Sobald ein Administrator verfügbar ist, wird er Ihnen antworten und die Bestellung ausführen.",
         "coordinates": "Schlosskoordinaten",
-        "confirm": "Bestätigen"
+        "confirm": "In den Warenkorb"
       },
       "topup": {
         "title": "Guthaben aufladen",
@@ -1466,8 +1940,8 @@ const resources = {
         "giftName": "Geschenke für {{amount}} Gems"
       },
       "special_page": {
-        "title": "Sonderangebote",
-        "subtitle": "Exklusive Pakete, Dienstleistungen und Saphire. Wähle einen Artikel, und wir liefern ihn auf dein Konto.",
+        "title": "Andere Artikel",
+        "subtitle": "Exklusive Pakete, Dienstleistungen und Sonderartikel. Wähle einen Artikel, und wir liefern ihn auf dein Konto.",
         "loading": "Artikel werden geladen...",
         "noItems": "Derzeit keine Artikel verfügbar.",
         "activeCode": "Code aktiv:",
@@ -1482,7 +1956,7 @@ const resources = {
       },
       "home": {
         "hero": {
-          "title": "Dein Arsenal in",
+          "title": "LordTreasury",
           "subtitle": "Kaufe Ressourcen, Edelsteine und Top-Accounts zu den besten Preisen. Schnelle Lieferung, garantierte Sicherheit und 24/7-Support.",
           "btnResources": "Ressourcen kaufen",
           "btnAccounts": "Accounts ansehen"
@@ -1490,15 +1964,25 @@ const resources = {
         "trust": {
           "title1": "Sofortige Lieferung",
           "desc1": "Wir versenden Ressourcen sofort nach Zahlungsbestätigung.",
-          "title2": "100% Sicherheit",
-          "desc2": "Saubere Ressourcen und Accounts ohne Risiko eines IGG-Banns.",
+          "title2": "100% Sicherheit & Zuverlässigkeit",
+          "desc2": "Volle Vertraulichkeit, sichere Datenübertragung und geprüfte Werte.",
           "title3": "24/7 Support",
           "desc3": "Immer über Telegram erreichbar, um alle Fragen zu klären."
+        },
+        "latestAccount": {
+          "sectionTitle": "Neuzugang",
+          "sectionSubtitle": "Das neueste verifizierte Konto, bereit für die sofortige Übergabe",
+          "badge": "🔥 Neuzugang",
+          "loading": "Aktuelle Angebote werden geladen...",
+          "viewBtn": "Account ansehen",
+          "allBtn": "Alle Katalog-Accounts →",
+          "emptyTitle": "Account-Katalog wird aktualisiert",
+          "emptyDesc": "Neue Angebote werden vom Treuhänder geprüft und täglich hinzugefügt."
         }
       },
       "accounts": {
         "title": "Account-Galerie",
-        "subtitle": "Top Lords Mobile Accounts mit verifizierten Stats",
+        "subtitle": "Top Accounts mit verifizierten Stats",
         "filter": {
           "all": "Alle",
           "active": "Zum Verkauf",
@@ -1527,18 +2011,56 @@ const resources = {
       "accountDetails": {
         "backToGallery": "Zurück zur Galerie",
         "price": "Preis",
+        "basePrice": "Regulärer Preis",
         "bind": "Bindung",
         "status": "Status",
-        "description": "Beschreibung",
+        "description": "Account-Beschreibung",
         "stats": "Statistiken",
+        "coreStats": "Hauptmerkmale",
+        "combatStats": "Kampfwerte",
+        "customInventory": "Zusätzliches Inventar",
         "might": "Macht",
-        "troops": "Truppen",
+        "castle": "Burgstufe",
+        "blessed": "Gesegnet",
+        "champ_gear": "Champion-Ausrüstung",
         "heroes": "Helden",
+        "familiars": "Vertraute",
         "artifacts": "Artefakte",
+        "attribute_lvl": "Attributstufe",
+        "max_kd": "Max. KD",
+        "troops": "Truppen",
         "images": "Bilder",
         "addToCart": "In den Warenkorb",
         "inCart": "Im Warenkorb",
-        "buyNow": "Jetzt kaufen"
+        "buyNow": "Jetzt kaufen",
+        "addToCompare": "Vergleichen",
+        "inCompare": "Im Vergleich",
+        "addToWishlist": "Auf Wunschliste",
+        "inWishlist": "Auf Wunschliste",
+        "tabAtk": "Angriff (ATK)",
+        "tabDef": "Verteidigung (DEF)",
+        "tabHp": "Lebenspunkte (KP)",
+        "mixAtk": "Mix ATK",
+        "mixAtkBase": "Mix ATK (Basis)",
+        "monoAtk": "Mono ATK",
+        "armyAtk": "Armee ATK",
+        "armyHp": "Armee HP",
+        "monoAtk": "Mono ATK",
+        "armyMixAtk": "Armee-Mix-ATK",
+        "armyMonoAtk": "Armee-Mono-ATK",
+        "mixDef": "Mix DEF",
+        "monoDef": "Mono DEF",
+        "armyMixDef": "Armee-Mix-DEF",
+        "armyMonoDef": "Armee-Mono-DEF",
+        "mixHp": "Mix KP",
+        "monoHp": "Mono KP",
+        "armyMixHp": "Armee-Mix-KP",
+        "armyMonoHp": "Armee-Mono-KP",
+        "leader": "Anführer",
+        "base": "Basis",
+        "verifiedBind": "Geprüfte Bindung",
+        "instantTransfer": "Sofortige Übergabe",
+        "supportGuarantee": "100% Sicherheitsgarantie & 24/7 Support"
       },
       "resources": {
         "title": "Ressourcen-Shop",
@@ -1553,7 +2075,7 @@ const resources = {
       },
       "gems": {
         "title": "Edelsteine (Gems)",
-        "subtitle": "Tolle Raten für Lords Mobile Gems",
+        "subtitle": "Tolle Raten für Spiel-Gems",
         "range": "Bereich",
         "rate": "Rate",
         "basePrice": "Basispreis",
@@ -1563,7 +2085,7 @@ const resources = {
         "totalPrice": "Gesamtpreis"
       },
       "calculator": {
-        "title": "Lords Mobile Rechner",
+        "title": "Spielrechner",
         "subtitle": "Berechne Trainingszeit, Ressourcen und Beschleuniger",
         "tabs": {
           "train": "T1-T4 Training",
@@ -1624,6 +2146,9 @@ const resources = {
         "cashback": "Cashback",
         "cashbackAuth": "Autorisierung erforderlich",
         "cashbackAvail": "Sie verdienen",
+        "cashbackCompletedNotice": "Wird nach Status «Erledigt» gutgeschrieben",
+        "cashbackBalanceOnlyNotice": "⚠️ Cashback gibt es nur bei Zahlung mit Website-Münzen (vom Guthaben)!",
+        "cashbackBalanceOnlyDesc": "Wählen Sie 'Vom Guthaben zahlen', um nach Abschluss der Bestellung Cashback zu erhalten.",
         "payBalanceBtn": "Mit Guthaben bezahlen",
         "orderBtn": "Jetzt bestellen",
         "promoUsed": "Sie haben diesen Promo-Code bereits verwendet!",
@@ -1640,8 +2165,25 @@ const resources = {
         "gift": "Geschenk: {{value}}",
         "appliesTo": "Gilt für: {{items}}",
         "appliesToEmpty": "Gilt für bestimmte Artikel (zum Warenkorb hinzufügen)",
-        "appliesToAll": "Gilt für die gesamte Bestellung",
-        "removePromo": "Promo-Code entfernen"
+        "removePromo": "Promo-Code entfernen",
+        "paymentMethodTitle": "Zahlungsmethode",
+        "payFromBalance": "Vom Guthaben bezahlen",
+        "payFromBalanceSub": "Website-Münzen",
+        "available": "Verfügbar:",
+        "needAuth": "Anmeldung erforderlich",
+        "insufficient": "Unzureichend",
+        "notForAccounts": "Nicht für Accounts",
+        "isTopup": "Aufladung",
+        "chatWithAdmin": "Chat mit dem Administrator",
+        "chatPaymentDesc": "Direktzahlung (Krypto / Karte) nach der Bestellung.",
+        "guildDiscount": "Gilden-Rabatt",
+        "createTicketBtn": "Zahlungsticket erstellen",
+        "successChat": "Bestellung erstellt! Weiterleitung zum Chat für Zahlungsdetails...",
+        "offlineTitle": "Achtung! Offline-Modus",
+        "offlineSubtext": "Sie können die Bestellung jetzt bezahlen, sie wird als Erste bearbeitet.",
+        "guildPromoDesc": "Alle Artikel zum Selbstkostenpreis berechnet (ohne Shop-Aufschlag).",
+        "priceForGuild": "Preis für Gildenmitglieder",
+        "item": "Artikel"
       },
       "profile": {
         "title": "Mein Konto",
@@ -1656,6 +2198,7 @@ const resources = {
           "wishlist": "Wunschliste",
           "payment": "Zahlung",
           "referrals": "Empfehlungen",
+          "cashback": "Rang & Cashback",
           "notifications": "Benachrichtigungen",
           "logout": "Abmelden"
         },
@@ -1716,14 +2259,62 @@ const resources = {
           "walletDesc": "E-Wallets"
         },
         "referrals": {
-          "title": "Freund einladen",
-          "desc": "Erhalte 5% von jedem Einkauf deiner Freunde direkt auf dein Guthaben. Je mehr Freunde, desto mehr kostenlose Ressourcen!",
-          "copy": "Kopieren"
+          "title": "Empfehlungsprogramm",
+          "desc": "Laden Sie Freunde über Ihren Link ein und erhalten Sie einen Prozentsatz ihrer Einkäufe direkt auf Ihr Guthaben!",
+          "copy": "Kopieren",
+          "invitedFriends": "Eingeladene Freunde",
+          "earnedTotal": "Verdient",
+          "whomInvited": "Von Ihnen eingeladen:",
+          "noInvitedYet": "Sie haben noch niemanden eingeladen. Teilen Sie Ihren Link!",
+          "ordersCount": "Bestellungen",
+          "noOrdersYet": "Noch keine Bestellungen",
+          "broughtYou": "Hat gebracht",
+          "noProfit": "Kein Gewinn",
+          "webLinkTitle": "Webseiten-Empfehlungslink",
+          "tgLinkTitle": "Telegram-Bot-Empfehlungslink",
+          "ratesTitle": "Ihre Belohnungssätze nach Kategorien",
+          "universalNote": "Universelles System: funktioniert für Einkäufe auf der Website und über den Telegram-Bot. Belohnungen werden nach Abschluss der Bestellung gutgeschrieben."
+        },
+        "cashback": {
+          "title": "Cashback & Ränge",
+          "subtitle": "Zahlen Sie mit Website-Münzen, steigen Sie im Rang auf und erhalten Sie Cashback direkt auf Ihr Guthaben!",
+          "currentRank": "Ihr aktueller Rang",
+          "totalSpent": "Gesamteinkäufe (Gesamtzeit)",
+          "toNextRank": "Verbleibend bis {{rank}}:",
+          "maxRankAchieved": "👑 Sie haben den maximalen Emperor-Rang mit den höchsten Cashback-Sätzen erreicht!",
+          "ratesTitle": "Ihre aktiven Cashback-Sätze",
+          "rss": "Ressourcen (RSS)",
+          "gems": "Saphire (Gems)",
+          "other": "Andere Artikel",
+          "account": "Accounts",
+          "noticeTitle": "Belohnungsregeln",
+          "rule1": "Cashback wird ausschließlich bei Zahlung mit Website-Münzen (vom internen Guthaben) gewährt.",
+          "rule2": "Cashback-Münzen und Empfehlungsboni werden erst gutgeschrieben, nachdem die Bestellung den Status «Erledigt» erreicht hat.",
+          "roadmapTitle": "Alle 5 Cashback-Ränge",
+          "threshold": "Ausgabenschwelle:",
+          "statusCurrent": "Aktuell",
+          "statusUnlocked": "Erreicht",
+          "statusLocked": "Gesperrt"
         },
         "notifications": {
           "title": "Benachrichtigungscenter",
           "markRead": "Alle als gelesen markieren",
-          "empty": "Sie haben noch keine neuen Benachrichtigungen."
+          "empty": "Sie haben noch keine neuen Benachrichtigungen.",
+          "orderUpdated": "Bestellung #{{id}} aktualisiert",
+          "orderCreated": "Bestellung aufgegeben!",
+          "orderCreatedDesc": "Ihre Bestellung #{{id}} wurde erstellt. Gehen Sie zum Chat für Details.",
+          "orderCompleted": "Bestellung erfolgreich abgeschlossen! Vielen Dank für Ihren Einkauf.",
+          "orderDelivered": "Ihre Bestellung wurde geliefert! Bitte überprüfen Sie den Artikel und bestätigen Sie den Empfang.",
+          "paymentReceived": "Zahlung erhalten! Ihre Bestellung wird bearbeitet.",
+          "awaitingPayment": "Bestellung erstellt. Warten auf Ihre Zahlung.",
+          "orderCancelled": "Leider wurde Ihre Bestellung storniert.",
+          "orderStatusChanged": "Bestellstatus wurde geändert.",
+          "welcomeTitle": "Herzlich willkommen!",
+          "welcomeDesc": "Willkommen bei LordTreasury!",
+          "tgLinkedTitle": "Telegram verknüpft",
+          "tgLinkedDesc": "Ihr Telegram-Konto wurde erfolgreich verknüpft! Benachrichtigungen und Guthaben sind jetzt synchronisiert.",
+          "balanceUpdatedTitle": "Guthaben aktualisiert",
+          "balanceUpdatedDesc": "Ihr Guthaben wurde vom Administrator angepasst. Aktuelles Guthaben: ${{balance}}"
         },
         "login": {
           "title": "Anmelden",
@@ -1914,6 +2505,7 @@ const resources = {
           "rssTitle": "Ressourcen (RSS)",
           "addBtn": "Hinzufügen",
           "packNameLabel": "Paketname",
+          "packDescLabel": "Paketbeschreibung (auf Website und in TG)",
           "costLabel": "Kosten",
           "priceLabel": "Preis",
           "gemsTitle": "Edelsteine (Raten)",
@@ -1944,21 +2536,171 @@ const resources = {
           "finalPriceLabel": "Endpreis für den Kunden:",
           "receiveDataTitle": "Daten empfangen",
           "receiveDataDesc": "Fügen Sie Felder hinzu, die der Kunde beim Kauf ausfüllen muss.",
-          "fieldPlaceholder": "Z.B.: Deine IGG ID...",
+          "fieldPlaceholder": "Z.B.: Deine ID / Nickname...",
           "addBtn": "Hinzufügen",
           "itemsTitle": "Deine Artikel",
           "noItems": "Du hast noch keine Artikel hinzugefügt"
         }
+      },
+      "common": {
+        "loading": "Laden...",
+        "error": "Fehler aufgetreten",
+        "success": "Erfolgreich!",
+        "yes": "Ja",
+        "no": "Nein",
+        "confirm": "Bestätigen",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "delete": "Löschen",
+        "edit": "Bearbeiten",
+        "add": "Hinzufügen",
+        "search": "Suche",
+        "filter": "Filter",
+        "sort": "Sortieren",
+        "close": "Schließen",
+        "back": "Zurück",
+        "next": "Weiter",
+        "previous": "Zurück",
+        "viewAll": "Alle anzeigen",
+        "learnMore": "Mehr erfahren"
+      },
+      "footer": {
+        "about": "Über uns",
+        "aboutDesc": "Ihr zuverlässiger Partner im Bereich Gaming-Dienstleistungen. Wir bieten sichere Dienstleistungen für Accounts, Ressourcen und Saphire mit Qualitätsgarantie.",
+        "navTitle": "Navigation",
+        "navHome": "Startseite",
+        "navAccounts": "Account-Galerie",
+        "navResources": "Ressourcen kaufen",
+        "navSpecial": "Andere Artikel",
+        "clientTitle": "Für Kunden",
+        "clientGuarantees": "Garantien & FAQ",
+        "clientTerms": "Nutzungsbedingungen",
+        "clientPrivacy": "Datenschutz",
+        "supportTitle": "Support",
+        "tgSupport": "Telegram Support",
+        "copyright": "© {{year}} LordTreasury. Alle Rechte vorbehalten."
+      },
+      "guarantees": {
+        "title": "Garantie-Service",
+        "subtitle": "Ihre Sicherheit ist unsere oberste Priorität. Erfahren Sie, wie wir Käufer und Verkäufer in jeder Phase der Transaktion schützen.",
+        "howItWorks": "Wie funktioniert ein sicherer Handel?",
+        "steps": {
+          "step1": {
+            "title": "Zahlung und Reservierung",
+            "desc": "Der Käufer bezahlt die Ware. Das Geld wird auf dem Konto des Garanten verwahrt, der Verkäufer erhält es noch nicht."
+          },
+          "step2": {
+            "title": "Account-Prüfung",
+            "desc": "Der Garant erhält die Daten vom Verkäufer, loggt sich in den Account ein und prüft die Übereinstimmung mit der Beschreibung."
+          },
+          "step3": {
+            "title": "Neuverknüpfung",
+            "desc": "Der Garant trennt die E-Mails und sozialen Netzwerke des Verkäufers und bindet den Account an die Daten des Käufers."
+          },
+          "step4": {
+            "title": "Erfolgreicher Abschluss",
+            "desc": "Der Käufer greift auf den Account zu und bestätigt den Erhalt. Erst danach überweist der Garant das Geld an den Verkäufer."
+          }
+        },
+        "faqTitle": "Häufig gestellte Fragen (FAQ)",
+        "faqs": [
+          {
+            "question": "Wie lange dauert eine Transaktion in der Regel?",
+            "answer": "In der Regel dauert eine Transaktion zwischen 20 Minuten und einigen Werktagen, abhängig von der Art der Bestellung und der gegenseitigen Vereinbarung, um beste Ergebnisse und höchste Sicherheit zu gewährleisten."
+          },
+          {
+            "question": "Welche Zahlungsmethoden akzeptieren Sie?",
+            "answer": "Wir arbeiten mit Kryptowährung (USDT TRC20/BEP20) für maximale Sicherheit und Vertraulichkeit sowie mit Bankkarten ausschließlich ukrainischer Banken bis zu einem bestimmten Limit (nach obligatorischer vorheriger Absprache im Support-Chat)."
+          },
+          {
+            "question": "Was tun, wenn der Account nicht der Beschreibung entspricht?",
+            "answer": "Unser Garant prüft jede Bestellung vor Übergabe sorgfältig. Bei Abweichungen von den Angaben auf der Website wird das Geschäft sofort storniert und der Betrag vollständig erstattet."
+          }
+        ]
+      },
+      "terms": {
+        "title": "Nutzungsbedingungen",
+        "subtitle": "Offizielle Regeln und Geschäftsbedingungen des LordTreasury Treuhand- und Marktplatzdienstes",
+        "lastUpdated": "Zuletzt aktualisiert: Oktober 2026",
+        "sections": {
+          "introTitle": "1. Allgemeine Bestimmungen",
+          "introText": "Durch die Nutzung von LordTreasury bestätigen Sie Ihr vollständiges Einverständnis mit diesen Bedingungen. Der Dienst fungiert als unabhängiger Treuhänder zur Gewährleistung sicherer Transaktionen zwischen Käufern und Verkäufern.",
+          "serviceTitle": "2. Leistungserbringung",
+          "serviceText": "Der Dienst verifiziert digitale Güter und Accounts, verwahrt Gelder treuhänderisch bis zur vollständigen Erfüllung der Verpflichtungen und unterstützt bei der Datenneuverknüpfung. Transaktionen dauern in der Regel zwischen 20 Minuten und einigen Werktagen je nach Auftragsart und gegenseitiger Absprache.",
+          "paymentTitle": "3. Zahlungsabwicklung und Limits",
+          "paymentText": "Zahlungen werden in Kryptowährung (USDT) sowie über Bankkarten ausschließlich ukrainischer Banken akzeptiert (bis zu einem festgelegten Limit und nach vorheriger Absprache mit dem Operator im Chat). Zahlungen mit ausländischen Bankkarten werden nicht unterstützt.",
+          "cancellationTitle": "4. Recht auf Dienstverweigerung und Stornierung",
+          "cancellationText": "Die Verwaltung von LordTreasury behält sich das uneingeschränkte Recht vor, Dienstleistungen zu verweigern oder Transaktionen/Bestellungen einseitig ohne Angabe von Gründen zu stornieren. Bei einer durch die Administration initiierten Stornierung werden alle eingezahlten Gelder in voller Höhe an den Käufer erstattet.",
+          "warrantyTitle": "5. Garantien und Rückerstattungen",
+          "warrantyText": "Stellt der Treuhänder bei der Prüfung Abweichungen von der Beschreibung fest, wird der Auftrag mit sofortiger 100%iger Rückerstattung storniert. Nach Bestätigung des erfolgreichen Zugriffs durch den Käufer geht die Verantwortung für die Sicherheit auf den Käufer über.",
+          "supportTitle": "6. Kundensupport",
+          "supportText": "Jeglicher Support und die Begleitung von Transaktionen erfolgen ausschließlich über unseren offiziellen Telegram-Supportkanal."
+        }
+      },
+      "privacy": {
+        "title": "Datenschutzerklärung",
+        "subtitle": "Wie wir Ihre Privatsphäre, persönlichen Daten und Transaktionen schützen",
+        "lastUpdated": "Zuletzt aktualisiert: Oktober 2026",
+        "sections": {
+          "collectTitle": "1. Erhobene Daten",
+          "collectText": "Wir erfassen nur die für die Bestellabwicklung zwingend erforderlichen Mindestdaten: In-Game-Nickname, Telegram-Kontakt, Bestellhistorie sowie technische Cookies zur Sitzungs- und Designverwaltung.",
+          "usageTitle": "2. Verwendungszweck",
+          "usageText": "Ihre Daten werden ausschließlich zur Auftragsabwicklung, Kommunikation während des Treuhandverfahrens und Gewährleistung der Plattformsicherheit genutzt.",
+          "sharingTitle": "3. Weitergabe an Dritte",
+          "sharingText": "Wir verkaufen oder übermitteln Ihre Daten niemals an Werbe- oder Marketingunternehmen. Eine Weitergabe erfolgt lediglich zwischen Käufer und Verkäufer im für die Übergabe notwendigen Umfang unter Treuhänderaufsicht.",
+          "cookiesTitle": "4. Cookie-Richtlinie",
+          "cookiesText": "Unsere Plattform nutzt essenzielle Cookies (Sitzung, Warenkorb, Sprache, Farbschema). Optionale Cookies werden nur nach Ihrer ausdrücklichen Zustimmung über das Cookie-Banner aktiviert.",
+          "securityTitle": "5. Datensicherheit",
+          "securityText": "Jeglicher Datenverkehr wird über moderne SSL/TLS-Verschlüsselung gesichert. Passwörter werden mit bewährten kryptografischen Algorithmen (bcrypt) sicher gehasht."
+        }
+      },
+      "compare": {
+        "title": "Account-Vergleich & Bewertung",
+        "subtitle": "Kraftbewertung nach Spielstil-Presets, 1-Klick-Sortierung und 1-gegen-1-Duell.",
+        "tableTab": "Tabelle",
+        "duelTab": "1 vs 1 Duell",
+        "clear": "Leeren",
+        "styleLabel": "Bewertungs-Preset & Spielrolle:",
+        "emptyTitle": "Keine Accounts zum Vergleichen",
+        "emptyDesc": "Fügen Sie Accounts über das Waage-Symbol im Katalog hinzu oder öffnen Sie das 1-vs-1-Duell.",
+        "goToAccounts": "Zu den Accounts",
+        "openDuel": "1 vs 1 Duell öffnen",
+        "criteriaHeader": "Bewertungskriterien",
+        "criteriaDesc": "Klicken Sie auf ein Kriterium, um den besten Account auf Platz 1 zu setzen 🔝",
+        "resetSort": "Sortierung zurücksetzen",
+        "mobileSwipeHint": "👈 Seitlich wischen zum Vergleichen 👉",
+        "topChoice": "Gewinner nach Auswahl",
+        "details": "Details",
+        "addToCart": "In den Warenkorb",
+        "freeSlot": "Freier Vergleichsplatz",
+        "powerCriteria": "Kriterien der Marktstärke",
+        "heroesSection": "Helden, Vertraute und Sonstiges",
+        "link": "Link",
+        "tags": "Tags",
+        "ratingSummary": "🏆 BEWERTUNG & WERT",
+        "duelTitle": "Duell-Urteil: Wer gewinnt?",
+        "expertAdvice": "Expertenrat:",
+        "duelRoundsWon": "Rundensiege",
+        "duelWinner": "Sieger nach Gesamtattributen!"
+      },
+      "easterEgg": {
+        "title": "Du bist in ein Genjutsu geraten",
+        "quote": "Auf einer endlosen Reise hast du eine Notiz gefunden...",
+        "secretCodeLabel": "Geheimer Promocode",
+        "darkness": "Die Dunkelheit hat deine Chance verschlungen...",
+        "dispel": "Illusion auflösen"
       }
     }
   }
 };
 
+const savedLang = (typeof window !== 'undefined' && localStorage.getItem('i18nextLng')) || "ua";
+
 i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: "ua",
+    lng: savedLang,
     fallbackLng: "en",
     interpolation: {
       escapeValue: false

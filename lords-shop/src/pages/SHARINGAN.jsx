@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Gift, AlertCircle, ChevronsDown } from 'lucide-react';
+import { apiGet } from '../config/apiClient';
+import { getFullUrl, API_ENDPOINTS } from '../config/api';
+import { useTranslation } from 'react-i18next';
 
 const SharinganEye = ({ isLeft }) => {
   const eyePath = isLeft
@@ -41,15 +44,15 @@ const SharinganEye = ({ isLeft }) => {
 };
 
 const SHARINGAN = () => {
+  const { t } = useTranslation();
   const [secretCode, setSecretCode] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchSecretCode = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/promocodes');
-        if (response.ok) {
-          const data = await response.json();
+        const data = await apiGet(getFullUrl(API_ENDPOINTS.PROMOCODES));
+        if (Array.isArray(data)) {
           const validSecret = data.find(p => (p.code === 'SHARINGAN' || p.code.startsWith('SECRET-')) && (p.max_uses === 0 || p.current_uses < p.max_uses));
           if (validSecret) setSecretCode(validSecret.code);
         }
@@ -91,13 +94,13 @@ const SHARINGAN = () => {
       {/* КОНТЕНТ */}
       <div className="text-center z-10 w-full max-w-2xl">
         <h1 className="genjutsu-title text-3xl sm:text-4xl md:text-5xl font-black text-red-500 mb-2 tracking-widest uppercase">
-          Ти потрапив у гендзюцу
+          {t('easterEgg.title', 'Ти потрапив у гендзюцу')}
         </h1>
         
         {secretCode ? (
           <div className="flex flex-col items-center">
             <p className="text-red-200/70 text-[10px] sm:text-xs md:text-sm italic mb-1">
-              "Під час нескінченної подорожі ти знайшов записку..."
+              "{t('easterEgg.quote', 'Під час нескінченної подорожі ти знайшов записку...')}"
             </p>
             
             <ChevronsDown className="w-5 h-5 text-red-600 mb-3 animate-bounce opacity-80" />
@@ -106,7 +109,7 @@ const SHARINGAN = () => {
             <div className="relative group inline-block">
               <div className="absolute -inset-1 bg-red-600/20 rounded-lg blur-md transition duration-1000 group-hover:opacity-60"></div>
               <div className="relative bg-black/80 border border-red-900/60 rounded-lg px-6 py-3 md:px-8 md:py-4 shadow-[0_0_25px_rgba(0,0,0,0.8)] backdrop-blur-md">
-                <div className="text-red-400/80 font-bold uppercase tracking-[0.2em] text-[7px] md:text-[9px] mb-1.5">Секретний промокод</div>
+                <div className="text-red-400/80 font-bold uppercase tracking-[0.2em] text-[7px] md:text-[9px] mb-1.5">{t('easterEgg.secretCodeLabel', 'Секретний промокод')}</div>
                 <div className="text-2xl md:text-4xl font-black text-red-500 tracking-wider select-all drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">
                   {secretCode}
                 </div>
@@ -115,13 +118,13 @@ const SHARINGAN = () => {
           </div>
         ) : (
           <div className="text-red-400/60 font-serif italic tracking-widest uppercase text-[10px] mt-4">
-            Темрява поглинула твій шанс...
+            {t('easterEgg.darkness', 'Темрява поглинула твій шанс...')}
           </div>
         )}
 
         <div className="mt-8">
           <Link to="/" className="inline-flex items-center gap-2 px-6 py-2 text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-500/50 rounded-full transition-all duration-500 uppercase tracking-[0.2em] text-[9px] font-bold bg-black/60 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-            <ArrowLeft className="w-3 h-3" /> Розвіяти ілюзію
+            <ArrowLeft className="w-3 h-3" /> {t('easterEgg.dispel', 'Розвіяти ілюзію')}
           </Link>
         </div>
       </div>

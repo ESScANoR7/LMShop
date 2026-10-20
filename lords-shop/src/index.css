@@ -1,6 +1,336 @@
 @import "tailwindcss";
 
+/* ============================================
+   LORDS SHOP — THEME VARIABLES
+   Default (data-theme="blue" or unset): Blue calm theme
+   data-theme="red": Red/crimson theme
+   data-theme="pink": Pink & White / Sakura theme
+   data-theme="monochrome": Classic Black & White / High Readability theme
+   ============================================ */
+
+:root,
+[data-theme="blue"] {
+  /* Backgrounds */
+  --bg-base:        #080d14;
+  --bg-card:        #0d1424;
+  --bg-card-hover:  #111d35;
+  --bg-input:       #0b111e;
+  --bg-overlay:     rgba(8, 13, 20, 0.9);
+
+  /* Borders */
+  --border-default: rgba(59, 130, 246, 0.15);
+  --border-accent:  rgba(59, 130, 246, 0.4);
+  --border-subtle:  rgba(30, 58, 138, 0.3);
+
+  /* Accent colors */
+  --accent:         #2563eb;
+  --accent-hover:   #1d4ed8;
+  --accent-muted:   rgba(37, 99, 235, 0.15);
+  --accent-glow:    rgba(37, 99, 235, 0.35);
+
+  /* Text */
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-accent:    #60a5fa;
+
+  /* Gold/amber (kept for balance badges etc.) */
+  --gold:           #f59e0b;
+  --gold-muted:     rgba(245, 158, 11, 0.15);
+
+  /* Danger/logout */
+  --danger:         #3b82f6;
+  --danger-muted:   rgba(59, 130, 246, 0.15);
+
+  /* Header */
+  --header-bg:      rgba(8, 13, 20, 0.92);
+  --header-border:  rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="red"] {
+  /* Backgrounds */
+  --bg-base:        #09090b;
+  --bg-card:        #18181b;
+  --bg-card-hover:  #27272a;
+  --bg-input:       #111113;
+  --bg-overlay:     rgba(9, 9, 11, 0.9);
+
+  /* Borders */
+  --border-default: rgba(127, 29, 29, 0.3);
+  --border-accent:  rgba(220, 38, 38, 0.5);
+  --border-subtle:  rgba(127, 29, 29, 0.25);
+
+  /* Accent colors */
+  --accent:         #dc2626;
+  --accent-hover:   #b91c1c;
+  --accent-muted:   rgba(220, 38, 38, 0.15);
+  --accent-glow:    rgba(220, 38, 38, 0.4);
+
+  /* Text */
+  --text-primary:   #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-accent:    #f87171;
+
+  /* Gold/amber */
+  --gold:           #f59e0b;
+  --gold-muted:     rgba(245, 158, 11, 0.15);
+
+  /* Danger/logout */
+  --danger:         #dc2626;
+  --danger-muted:   rgba(220, 38, 38, 0.15);
+
+  /* Header */
+  --header-bg:      rgba(9, 9, 11, 0.9);
+  --header-border:  rgba(127, 29, 29, 0.35);
+}
+
+[data-theme="pink"] {
+  /* Backgrounds - Velvet Rose Night */
+  --bg-base:        #0f0714;
+  --bg-card:        #190d22;
+  --bg-card-hover:  #251433;
+  --bg-input:       #150a1d;
+  --bg-overlay:     rgba(15, 7, 20, 0.92);
+
+  /* Borders - Soft Sakura & Radiant Rose */
+  --border-default: rgba(244, 114, 182, 0.22);
+  --border-accent:  rgba(244, 114, 182, 0.55);
+  --border-subtle:  rgba(236, 72, 153, 0.25);
+
+  /* Accent colors - Neon Sakura Rose */
+  --accent:         #ec4899;
+  --accent-hover:   #db2777;
+  --accent-muted:   rgba(236, 72, 153, 0.18);
+  --accent-glow:    rgba(244, 114, 182, 0.42);
+
+  /* Text - Crisp White & Soft Rose Tint */
+  --text-primary:   #ffffff;
+  --text-secondary: #fce7f3;
+  --text-accent:    #f472b6;
+
+  /* Gold/amber */
+  --gold:           #fbbf24;
+  --gold-muted:     rgba(251, 191, 36, 0.15);
+
+  /* Danger/logout */
+  --danger:         #f43f5e;
+  --danger-muted:   rgba(244, 63, 94, 0.15);
+
+  /* Header */
+  --header-bg:      rgba(15, 7, 20, 0.92);
+  --header-border:  rgba(244, 114, 182, 0.28);
+}
+
+[data-theme="monochrome"] {
+  /* Backgrounds - Pure Obsidian Noir */
+  --bg-base:        #09090b;
+  --bg-card:        #141417;
+  --bg-card-hover:  #1e1e23;
+  --bg-input:       #0d0d10;
+  --bg-overlay:     rgba(9, 9, 11, 0.94);
+
+  /* Borders - Clean Silver & Platinum */
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-accent:  rgba(255, 255, 255, 0.5);
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+
+  /* Accent colors - Dark Titanium Slate with White Contrast */
+  --accent:         #27272a;
+  --accent-hover:   #3f3f46;
+  --accent-muted:   rgba(255, 255, 255, 0.12);
+  --accent-glow:    rgba(255, 255, 255, 0.28);
+
+  /* Text - Maximum Legibility & Clean Reading */
+  --text-primary:   #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-accent:    #ffffff;
+
+  /* Gold/amber */
+  --gold:           #f59e0b;
+  --gold-muted:     rgba(245, 158, 11, 0.15);
+
+  /* Danger/logout */
+  --danger:         #ef4444;
+  --danger-muted:   rgba(239, 68, 68, 0.15);
+
+  /* Header */
+  --header-bg:      rgba(9, 9, 11, 0.94);
+  --header-border:  rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+html {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
-  background-color: #0f172a;
-  color: white;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ============================================
+   THEME UTILITY CLASSES
+   ============================================ */
+.theme-bg-base      { background-color: var(--bg-base) !important; }
+.theme-bg-card      { background-color: var(--bg-card) !important; }
+.theme-border       { border-color: var(--border-default) !important; }
+.theme-border-accent{ border-color: var(--border-accent) !important; }
+.theme-accent       { color: var(--text-accent) !important; }
+.theme-accent-bg    { background-color: var(--accent) !important; }
+.theme-text         { color: var(--text-primary) !important; }
+.theme-text-muted   { color: var(--text-secondary) !important; }
+
+/* Header theming */
+.lords-header {
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Logo text */
+.lords-logo {
+  font-family: inherit;
+  font-weight: 900;
+  color: var(--text-accent);
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 20px var(--accent-glow);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+/* Navigation links */
+.lords-nav-link {
+  color: var(--text-secondary);
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+.lords-nav-link:hover {
+  color: var(--gold);
+}
+
+/* Theme toggle button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  line-height: 1;
+}
+.theme-toggle-btn:hover {
+  border-color: var(--border-accent);
+  color: var(--text-accent);
+  background-color: var(--accent-muted);
+}
+
+/* Input styling */
+.lords-input {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  border-radius: 9999px;
+  transition: border-color 0.2s ease;
+}
+.lords-input:focus {
+  outline: none;
+  border-color: var(--border-accent);
+}
+
+/* Mobile menu */
+.lords-mobile-menu {
+  background-color: var(--bg-base);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Lang button active state */
+.lords-lang-active {
+  background-color: var(--accent) !important;
+  color: white !important;
+}
+
+/* Smooth theme transitions for key elements */
+header, nav, main, footer,
+.bg-zinc-950, .bg-zinc-900, .bg-zinc-800 {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============================================
+   🔥 SLEEK CUSTOM SCROLLBARS (ZERO WHITE SCROLL)
+   Modern Dark/Black with Crimson-Red Accent Hover
+   ============================================ */
+
+/* Global HTML & Body Scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #070b12;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070b12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #273549;
+  border-radius: 9999px;
+  border: 2px solid #070b12;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #dc2626; /* Crimson red accent */
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: #070b12;
+}
+
+/* Custom Inner Scrollbar for Tables, Modals, Chat, Lists */
+.custom-scrollbar,
+.admin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0b0f19;
+}
+
+.custom-scrollbar::-webkit-scrollbar,
+.admin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+.admin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(11, 15, 25, 0.7);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ef4444; /* Neon Crimson Red */
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
 }

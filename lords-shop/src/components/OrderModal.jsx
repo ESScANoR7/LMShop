@@ -77,7 +77,7 @@ const OrderModal = ({ isOpen, onClose, product, type }) => {
               <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl flex items-start gap-3">
                 <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-0.5" />
                 <p className="text-amber-400 text-sm font-bold leading-snug">
-                  {t('orderModal.rssWarningFull', '⚠️ Гравець має бути подалі від Fort та знаходитись у відкритій гільдії у себе в королівстві!')}
+                  {t('orderModal.rssWarningFull', '⚠️ Гравець має бути подалі від Fort та знаходитись у відкритій гільдії (більше 20 місць без ліміту по міці) у себе в королівстві!')}
                 </p>
               </div>
 
@@ -88,7 +88,7 @@ const OrderModal = ({ isOpen, onClose, product, type }) => {
                 </label>
                 <input 
                   required
-                  placeholder="[xxx]name123 K:1111 X:111 Y:111"
+                  placeholder={t('orderModal.rssPlaceholder', '[xxx]name123 K:1111 X:111 Y:111')}
                   className="w-full bg-slate-950 border-2 border-slate-800 hover:border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all font-mono text-sm placeholder:text-slate-600"
                   onChange={(e) => setFormData({...formData, rssData: e.target.value})}
                   value={formData.rssData}

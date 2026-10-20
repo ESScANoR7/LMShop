@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { PriceDisplay } from '../context/CurrencyContext';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, ShoppingCart, ShieldAlert, Ticket, X, CheckCircle2, Gift, Percent, BadgeDollarSign, Coins, Moon, MessageCircle } from 'lucide-react'; 
+import { Trash2, ShoppingCart, ShieldAlert, Ticket, X, CheckCircle2, Gift, Percent, BadgeDollarSign, Coins, Moon, MessageCircle, ArrowRight, Shield, Gem, PackageOpen, Sparkles } from 'lucide-react';
+import { getImageUrl } from '../config/api'; 
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiGet, apiPost, handleApiError } from '../config/apiClient';
@@ -9,7 +11,7 @@ import { API_ENDPOINTS, getFullUrl } from '../config/api';
 import { useTranslation } from 'react-i18next';
 
 const Cart = () => {
-  const { t } = useTranslation(); 
+  const { t, i18n } = useTranslation(); 
   
   const { 
     cart, removeFromCart, clearCart, 
@@ -20,7 +22,55 @@ const Cart = () => {
   const { user, isLoggedIn, updateBalance } = useAuth(); 
   const navigate = useNavigate();
 
-  // 🔥 Замість 'crypto' тепер використовуємо універсальний 'p2p' (ручна оплата)
+  const renderItemIcon = (item) => {
+    const type = (item.type || '').toLowerCase();
+    const img = item.product?.images?.[0] || item.product?.image;
+
+    if (type === 'account' || type === 'acc') {
+      if (img) {
+        return (
+          <img
+            src={getImageUrl(img)}
+            alt=""
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-amber-500/40 shadow-md flex-shrink-0"
+          />
+        );
+      }
+      return (
+        <img
+          src="/icons/account.jpg"
+          alt="Account"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-amber-500/40 shadow-md flex-shrink-0"
+        />
+      );
+    }
+    if (type === 'gems' || type === 'gem') {
+      return (
+        <img
+          src="/icons/gems.jpg"
+          alt="Gems"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-purple-500/40 shadow-md flex-shrink-0"
+        />
+      );
+    }
+    if (type === 'rss' || type === 'resources') {
+      return (
+        <img
+          src="/icons/rss.jpg"
+          alt="RSS"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-amber-500/40 shadow-md flex-shrink-0"
+        />
+      );
+    }
+    return (
+      <img
+        src="/icons/coins.jpg"
+        alt="Coins"
+        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-yellow-500/40 shadow-md flex-shrink-0"
+      />
+    );
+  };
+
   const [paymentMethod, setPaymentMethod] = useState('p2p');
   const [promoInput, setPromoInput] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
@@ -46,33 +96,49 @@ const Cart = () => {
 
       if (appliedPromo) {
         const getPrefix = (type) => {
-          if (type === 'account') return 'acc_';
-          if (type === 'rss') return 'rss_';
-          if (type === 'gems') return 'gem_';
-          if (type === 'special') return 'oth_';
+          if (type === 'account' || type === 'acc') return 'acc_';
+          if (type === 'rss' || type === 'resources') return 'rss_';
+          if (type === 'gems' || type === 'gem') return 'gem_';
+          if (type === 'special' || type === 'other') return 'oth_';
           return '';
         };
         const prefix = getPrefix(item.type);
-        const itemIdStr = `${prefix}${item.product?.id}`;
+        const itemIdStr = `${prefix}${item.product?.id || item.id}`;
         
-        const isTargeted = appliedPromo.target_items?.includes(itemIdStr);
-        const isGlobal = !appliedPromo.target_items || appliedPromo.target_items.length === 0;
+        const pTarget = (appliedPromo.target || 'all').toLowerCase();
+        let isEligible = false;
+
+        if (pTarget === 'all') {
+          isEligible = true;
+        } else if (pTarget === 'rss' && (item.type === 'rss' || item.type === 'resources')) {
+          isEligible = true;
+        } else if (pTarget === 'gems' && (item.type === 'gems' || item.type === 'gem')) {
+          isEligible = true;
+        } else if (pTarget === 'accounts' && (item.type === 'account' || item.type === 'acc')) {
+          isEligible = true;
+        } else if (pTarget === 'other' && (item.type === 'special' || item.type === 'other')) {
+          isEligible = true;
+        } else if (pTarget === 'specific' || (appliedPromo.target_items && appliedPromo.target_items.length > 0)) {
+          isEligible = appliedPromo.target_items?.includes(itemIdStr);
+        }
 
         if (appliedPromo.target === 'guild') {
           disc += (iPrice - iBase);
-        } 
-        else if (isTargeted || isGlobal) {
+        } else if (isEligible) {
           if (appliedPromo.type === 'percent') {
-            disc += iPrice * (parseFloat(appliedPromo.value) / 100);
-          } else if (appliedPromo.type === 'fixed' && !isGlobal) {
-            disc += parseFloat(appliedPromo.value);
+            const pct = Math.min(100, Math.max(0, parseFloat(appliedPromo.value) || 0));
+            disc += iPrice * (pct / 100);
+          } else if (appliedPromo.type === 'fixed') {
+            if (pTarget !== 'all') {
+              disc += Math.min(iPrice, parseFloat(appliedPromo.value) || 0);
+            }
           }
         }
       }
     });
 
-    if (appliedPromo && appliedPromo.type === 'fixed' && (!appliedPromo.target_items || appliedPromo.target_items.length === 0) && appliedPromo.target !== 'guild') {
-      disc = parseFloat(appliedPromo.value);
+    if (appliedPromo && appliedPromo.type === 'fixed' && (appliedPromo.target === 'all' || !appliedPromo.target) && (!appliedPromo.target_items || appliedPromo.target_items.length === 0)) {
+      disc = parseFloat(appliedPromo.value) || 0;
     }
 
     if (disc > sub) disc = sub;
@@ -86,9 +152,8 @@ const Cart = () => {
   const hasAccountInCart = cart.some(item => item.type === 'account');
   const isTopupCart = cart.some(item => item.type === 'topup');
 
-  // 🔥 ОНОВЛЕНА АВТОВИБІРКА ОПЛАТИ 🔥
+  // Автоматичний вибір оплати з балансу, якщо коштів достатньо
   useEffect(() => {
-    // Якщо юзер має достатньо грошей, і це не акаунт, і не поповнення балансу
     if (isLoggedIn && user && user.balance >= localTotal && localTotal > 0 && !hasAccountInCart && !isTopupCart) {
       setPaymentMethod('balance');
     } else {
@@ -110,15 +175,27 @@ const Cart = () => {
 
   const checkIsOffline = (itemType) => {
     if (!storeStatus.is_offline) return false;
-    let mappedType = '';
-    if (itemType === 'rss') mappedType = 'resources';
-    else if (itemType === 'gems') mappedType = 'gems';
-    else if (itemType === 'account') mappedType = 'account';
-    else if (itemType === 'special') mappedType = 'other';
-    return storeStatus.offline_categories.includes(mappedType);
+    const offlineCats = storeStatus.offline_categories || [];
+    // Якщо список категорій порожній, але is_offline=true -> глобальний офлайн
+    if (offlineCats.length === 0) return true;
+
+    let mappedType = 'other';
+    if (itemType === 'rss' || itemType === 'resources') mappedType = 'resources';
+    else if (itemType === 'gems' || itemType === 'gem') mappedType = 'gems';
+    else if (itemType === 'account' || itemType === 'acc') mappedType = 'account';
+    else if (itemType === 'special' || itemType === 'other' || itemType === 'oth') mappedType = 'other';
+    else if (itemType === 'topup' || itemType === 'balance' || itemType === 'coins') mappedType = 'topup';
+
+    return offlineCats.includes(mappedType);
   };
   
-  const hasOfflineItems = cart.some(item => checkIsOffline(item.type));
+  const hasOfflineItems = Boolean(
+    storeStatus.is_offline && (
+      !storeStatus.offline_categories || 
+      storeStatus.offline_categories.length === 0 || 
+      cart.some(item => checkIsOffline(item.type))
+    )
+  );
 
   const handleApplyPromo = async () => {
     if (!promoInput.trim()) return;
@@ -126,7 +203,7 @@ const Cart = () => {
     const codeToApply = promoInput.trim().toUpperCase();
 
     if (localStorage.getItem(`used_promo_${codeToApply}`)) {
-      toast.error(t('cart.promoUsed'));
+      toast.error(t('cart.promoUsed', 'Ви вже використовували цей промокод!'));
       setIsApplyingPromo(false);
       return;
     }
@@ -135,14 +212,46 @@ const Cart = () => {
       const data = await apiGet(getFullUrl(API_ENDPOINTS.PROMOCODE_VALIDATE(codeToApply)) + `?total=${localSubtotal}`);
 
       if (data.valid) {
+        const pTarget = (data.target || 'all').toLowerCase();
+        let hasMatchingItem = true;
+        if (pTarget === 'rss') {
+          hasMatchingItem = cart.some(it => it.type === 'rss' || it.type === 'resources');
+          if (!hasMatchingItem) {
+            toast.error('Цей промокод діє тільки на Паки Ресурсів (RSS). Додайте ресурси у кошик!');
+            setIsApplyingPromo(false);
+            return;
+          }
+        } else if (pTarget === 'gems') {
+          hasMatchingItem = cart.some(it => it.type === 'gems' || it.type === 'gem');
+          if (!hasMatchingItem) {
+            toast.error('Цей промокод діє тільки на Сапфіри (Gems). Додайте сапфіри у кошик!');
+            setIsApplyingPromo(false);
+            return;
+          }
+        } else if (pTarget === 'accounts') {
+          hasMatchingItem = cart.some(it => it.type === 'account' || it.type === 'acc');
+          if (!hasMatchingItem) {
+            toast.error('Цей промокод діє тільки на Акаунти.');
+            setIsApplyingPromo(false);
+            return;
+          }
+        } else if (pTarget === 'other') {
+          hasMatchingItem = cart.some(it => it.type === 'special' || it.type === 'other');
+          if (!hasMatchingItem) {
+            toast.error('Цей промокод діє тільки на Послуги.');
+            setIsApplyingPromo(false);
+            return;
+          }
+        }
+
         applyPromo({ code: codeToApply, ...data });
-        toast.success(t('cart.promoSuccess'));
+        toast.success(t('cart.promoSuccess', 'Промокод успішно застосовано!'));
         setPromoInput('');
       } else {
-        toast.error(data.message || t('cart.promoInvalid'));
+        toast.error(data.message || t('cart.promoInvalid', 'Промокод недійсний'));
       }
     } catch (error) {
-      handleApiError(error, t('common.error'));
+      handleApiError(error, t('common.error', 'Сталася помилка'));
     }
     setIsApplyingPromo(false);
   };
@@ -150,18 +259,27 @@ const Cart = () => {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
 
+    if (hasOfflineItems) {
+      toast.error(storeStatus.offline_message || '🌙 Створення замовлень тимчасово призупинено в офлайн-режимі!', { duration: 5000 });
+      return;
+    }
+
     if (paymentMethod === 'balance') {
       if (!isLoggedIn || !user) {
-        toast.error(t('cart.balanceLoginReq'));
+        toast.error(t('cart.balanceLoginReq', 'Для оплати з балансу потрібно увійти в акаунт!'));
         return;
       }
       if (user.balance < localTotal) {
-        toast.error(t('cart.balanceInsuff'));
+        toast.error(t('cart.balanceInsuff', 'Недостатньо монет на балансі!'));
         return;
       }
     }
 
-    const cartForTelegram = [...cart];
+    const userLang = i18n.language || 'ua';
+    const cartForTelegram = cart.map((item, idx) => ({
+      ...item,
+      ...(idx === 0 ? { _lang: userLang } : {})
+    }));
     if (appliedPromo) {
       if (appliedPromo.type === 'item' || appliedPromo.type === 'gift') {
         cartForTelegram.push({
@@ -176,7 +294,6 @@ const Cart = () => {
       }
     }
 
-    // Відправляємо зрозумілу назву методу в базу даних (замість p2p відправимо Ручна Оплата)
     const backendPaymentMethod = paymentMethod === 'balance' ? 'balance' : 'Оплата в чаті';
 
     const orderData = {
@@ -188,23 +305,48 @@ const Cart = () => {
       promo_code: appliedPromo ? appliedPromo.code : null 
     };
 
-    const toastId = toast.loading(t('cart.sending'));
+    const toastId = toast.loading(t('cart.sending', 'Відправка замовлення...'));
     try {
-      const response = await apiPost(getFullUrl(API_ENDPOINTS.CHECKOUT), orderData);
+      const res = await apiPost(getFullUrl(API_ENDPOINTS.CHECKOUT), orderData);
+      const newOrderId = res?.order_id;
 
       if (paymentMethod === 'balance') {
         updateBalance(user.balance - localTotal);
         toast.success(t('cart.successBalance', { amount: localTotal.toFixed(2) }), { id: toastId });
       } else {
-        toast.success('Замовлення створено! Переходимо в чат для отримання реквізитів...', { id: toastId, duration: 4000 });
+        toast.success(t('cart.successChat', 'Замовлення створено! Переходимо в чат для отримання реквізитів...'), { id: toastId, duration: 4000 });
       }
 
       if (appliedPromo) localStorage.setItem(`used_promo_${appliedPromo.code}`, 'true');
+      
+      const newOrderData = newOrderId ? {
+        id: newOrderId,
+        cart: cartForTelegram,
+        paymentMethod: backendPaymentMethod,
+        total: localTotal.toFixed(2),
+        profit: localProfit.toFixed(2),
+        status: paymentMethod === 'balance' ? 'paid_processing' : 'awaiting_payment',
+        user_id: user?.id || null,
+        created_at: new Date().toISOString()
+      } : null;
+
+      if (newOrderData) {
+        try {
+          sessionStorage.setItem('latest_order', JSON.stringify(newOrderData));
+        } catch (e) {}
+      }
+
       clearCart();
       
-      navigate('/profile?tab=orders'); 
+      navigate(`/profile?tab=orders${newOrderId ? `&order_id=${newOrderId}` : ''}`, {
+        state: { 
+          newOrderId, 
+          optimisticOrder: newOrderData,
+          justOrdered: true 
+        }
+      });
     } catch (error) {
-      handleApiError(error, t('cart.checkoutErr'));
+      handleApiError(error, t('cart.checkoutErr', 'Помилка оформлення замовлення'));
       toast.dismiss(toastId);
     }
   };
@@ -216,8 +358,8 @@ const Cart = () => {
 
     if (appliedPromo.target === 'guild') {
       icon = <ShieldAlert className="w-5 h-5 text-amber-400" />;
-      title = `🛡️ ГІЛЬДІЯ: ${appliedPromo.target_names?.[0] || 'Для своїх'}`;
-      description = "Всі товари розраховано за собівартістю (Без націнки сайту).";
+      title = `🛡️ ГІЛЬДІЯ: ${appliedPromo.target_names?.[0] || t('cart.priceForGuild', 'Ціна для Своїх')}`;
+      description = t('cart.guildPromoDesc', 'Всі товари розраховано за собівартістю (Без націнки сайту).');
     } 
     else if (appliedPromo.type === 'percent') {
       icon = <Percent className="w-5 h-5 text-emerald-400" />;
@@ -252,43 +394,118 @@ const Cart = () => {
     }
 
     return (
-      <div className={`flex items-start justify-between p-4 ${appliedPromo.target === 'guild' ? 'bg-amber-900/10 border-amber-500/30' : 'bg-emerald-900/10 border-emerald-500/30'} rounded-xl relative overflow-hidden`}>
-        <div className={`absolute -right-4 -top-4 w-16 h-16 ${appliedPromo.target === 'guild' ? 'bg-amber-500/10' : 'bg-emerald-500/10'} rounded-full blur-xl`}></div>
+      <div 
+        className="flex items-start justify-between p-3.5 rounded-2xl relative overflow-hidden border"
+        style={{
+          background: appliedPromo.target === 'guild' ? 'var(--gold-muted)' : 'rgba(16, 185, 129, 0.1)',
+          borderColor: appliedPromo.target === 'guild' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(16, 185, 129, 0.35)'
+        }}
+      >
         <div className="flex items-start gap-3 min-w-0 relative z-10">
-          <div className={`p-2 ${appliedPromo.target === 'guild' ? 'bg-amber-500/20' : 'bg-emerald-500/20'} rounded-lg flex-shrink-0 mt-0.5`}>{icon}</div>
-          <div className="truncate">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-sm font-black ${appliedPromo.target === 'guild' ? 'text-amber-400 bg-amber-950/50 border-amber-800/50' : 'text-emerald-400 bg-emerald-950/50 border-emerald-800/50'} tracking-wider uppercase px-2 py-0.5 rounded border`}>
+          <div className="p-2 rounded-xl flex-shrink-0 mt-0.5" style={{ background: 'rgba(0,0,0,0.3)' }}>
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+              <span 
+                className="text-xs font-black tracking-wider uppercase px-2 py-0.5 rounded border"
+                style={{
+                  color: appliedPromo.target === 'guild' ? 'var(--gold)' : '#34d399',
+                  borderColor: appliedPromo.target === 'guild' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)',
+                  background: 'rgba(0,0,0,0.4)'
+                }}
+              >
                 {appliedPromo.code}
               </span>
-              <CheckCircle2 className={`w-4 h-4 ${appliedPromo.target === 'guild' ? 'text-amber-500' : 'text-emerald-500'}`} />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             </div>
-            <div className="text-sm font-bold text-white truncate">{title}</div>
-            <div className={`text-xs ${appliedPromo.target === 'guild' ? 'text-amber-300/80' : 'text-emerald-300/80'} mt-1 font-medium whitespace-normal`}>{description}</div>
+            <div className="text-xs sm:text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{title}</div>
+            <div className="text-[11px] mt-1 font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              {description}
+            </div>
           </div>
         </div>
-        <button onClick={removePromo} className="text-slate-500 hover:text-red-400 transition-colors p-2 bg-slate-800/50 rounded-lg hover:bg-slate-800 flex-shrink-0 ml-2 border border-transparent hover:border-red-900/50 relative z-10" title={t('cart.removePromo')}>
+        <button 
+          onClick={removePromo} 
+          className="p-1.5 rounded-lg flex-shrink-0 ml-2 border transition-colors hover:text-red-400"
+          style={{
+            background: 'var(--bg-card)',
+            borderColor: 'var(--border-default)',
+            color: 'var(--text-secondary)'
+          }}
+          title={t('cart.removePromo', 'Видалити промокод')}
+        >
           <X className="w-4 h-4" />
         </button>
       </div>
     );
   };
 
-  const pendingCashback = appliedPromo?.target === 'guild' ? "0.00" : calculatePendingCashback();
+  const pendingCashback = appliedPromo?.target === 'guild' ? "0.00" : calculatePendingCashback(user?.tier);
 
   return (
-    <div className="pb-20 pt-8 max-w-6xl mx-auto px-4 min-h-[80vh]">
-      <h1 className="text-3xl font-bold text-white mb-8">{t('cart.title', 'Оформлення замовлення')}</h1>
+    <div className="pb-24 pt-6 max-w-6xl mx-auto px-4 min-h-[80vh]">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: 'var(--text-accent)' }}>
+          {t('cart.title', 'Оформлення замовлення')}
+        </h1>
+        {cart.length > 0 && (
+          <button
+            onClick={clearCart}
+            className="text-xs font-bold transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border hover:text-red-400"
+            style={{
+              background: 'var(--bg-card)',
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t('cart.remove', 'Очистити')}</span>
+          </button>
+        )}
+      </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+        
+        {/* ======================================================== */}
+        {/* СПИСОК ТОВАРІВ У КОШИКУ */}
+        {/* ======================================================== */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-3 sm:space-y-4">
           {cart.length === 0 ? (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-10 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
-              <ShoppingCart className="w-16 h-16 text-slate-700 mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">{t('cart.empty')}</h2>
-              <p className="text-slate-500 mb-6 text-sm">{t('cart.emptyDesc')}</p>
-              <Link to="/resources" className="px-6 py-3 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white font-bold rounded-xl transition-all">
-                {t('cart.backToCatalog')}
+            <div 
+              className="rounded-3xl p-8 sm:p-12 flex flex-col items-center justify-center text-center h-full min-h-[320px] border shadow-xl backdrop-blur-md"
+              style={{
+                background: 'var(--bg-card)',
+                borderColor: 'var(--border-default)'
+              }}
+            >
+              <div 
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mb-5 border shadow-inner"
+                style={{
+                  background: 'var(--accent-muted)',
+                  borderColor: 'var(--border-accent)',
+                  color: 'var(--text-accent)'
+                }}
+              >
+                <ShoppingCart className="w-8 h-8 sm:w-10 sm:h-10" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black mb-2" style={{ color: 'var(--text-primary)' }}>
+                {t('cart.empty', 'Кошик порожній')}
+              </h2>
+              <p className="max-w-md mb-6 text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {t('cart.emptyDesc', 'Додайте товари з каталогу, щоб оформити швидку доставку.')}
+              </p>
+              <Link 
+                to="/accounts" 
+                className="px-6 py-3 font-bold text-xs sm:text-sm rounded-xl transition-all shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95"
+                style={{
+                  background: 'var(--accent)',
+                  color: '#ffffff',
+                  boxShadow: '0 0 15px var(--accent-glow)'
+                }}
+              >
+                <span>{t('cart.backToCatalog', 'Перейти до каталогу')}</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           ) : (
@@ -302,7 +519,7 @@ const Cart = () => {
               };
 
               const prefix = getPrefix(item.type);
-              const isTargeted = appliedPromo && appliedPromo.target_items && appliedPromo.target_items.includes(`${prefix}${item.product.id}`);
+              const isTargeted = appliedPromo && appliedPromo.target_items && appliedPromo.target_items.includes(`${prefix}${item.product?.id}`);
               const isGlobal = appliedPromo && (!appliedPromo.target_items || appliedPromo.target_items.length === 0);
               
               const hasActiveDiscount = (isTargeted || isGlobal || appliedPromo?.target === 'guild') && appliedPromo;
@@ -322,40 +539,87 @@ const Cart = () => {
               }
 
               return (
-                <div key={item.cartId} className={`bg-slate-800/50 border ${hasActiveDiscount && appliedPromo ? (appliedPromo.target === 'guild' ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.15)] bg-amber-900/5' : 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)] bg-emerald-900/5') : 'border-slate-700'} rounded-2xl p-5 flex gap-4 relative group transition-all`}>
-                  <div className="w-12 h-12 bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-400 flex-shrink-0">
-                    <ShoppingCart className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-white truncate">{item.product?.name || item.product?.title || t('cart.item')}</h3>
-                    
-                    {hasActiveDiscount && appliedPromo && (
-                      <div className={`mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 ${appliedPromo.target === 'guild' ? 'bg-amber-900/30 border-amber-500/30 text-amber-400' : 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400'} border rounded text-[10px] uppercase font-bold`}>
-                        <Ticket className="w-3 h-3" /> {appliedPromo.target === 'guild' ? 'Ціна для Своїх' : t('cart.discountActive')}
-                      </div>
-                    )}
+                <div 
+                  key={item.cartId} 
+                  className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 relative group transition-all border shadow-lg backdrop-blur-md"
+                  style={{
+                    background: 'var(--bg-card)',
+                    borderColor: hasActiveDiscount ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-default)',
+                  }}
+                >
+                  <div className="flex items-start gap-3 flex-1 min-w-0 pr-10 sm:pr-0">
+                    {renderItemIcon(item)}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm sm:text-base font-bold break-words" style={{ color: 'var(--text-primary)' }}>
+                        {item.product?.name || item.product?.title || t('cart.item', 'Товар')}
+                      </h3>
+                      
+                      {hasActiveDiscount && appliedPromo && (
+                        <div 
+                          className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 border rounded text-[10px] uppercase font-bold"
+                          style={{
+                            background: appliedPromo.target === 'guild' ? 'var(--gold-muted)' : 'rgba(16, 185, 129, 0.15)',
+                            borderColor: appliedPromo.target === 'guild' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)',
+                            color: appliedPromo.target === 'guild' ? 'var(--gold)' : '#34d399'
+                          }}
+                        >
+                          <Ticket className="w-3 h-3" /> 
+                          <span>{appliedPromo.target === 'guild' ? t('cart.priceForGuild', 'Ціна для Своїх') : t('cart.discountActive', 'Знижка активна')}</span>
+                        </div>
+                      )}
 
-                    <div className="mt-2 text-xs text-slate-400 space-y-1">
-                      {item.userData?.nickname && <div>{t('cart.nickname')} <span className="text-slate-300">{item.userData.nickname}</span></div>}
-                      {item.userData?.details && <div className="text-blue-300 truncate">{item.userData.details}</div>}
+                      <div className="mt-1.5 text-[11px] sm:text-xs space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
+                        {item.userData?.nickname && (
+                          <div>
+                            {t('cart.nickname', 'Нікнейм:')} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{item.userData.nickname}</span>
+                          </div>
+                        )}
+                        {item.userData?.details && (
+                          <div className="truncate font-medium" style={{ color: 'var(--text-accent)' }}>
+                            {item.userData.details}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col items-end self-center pr-8">
-                    {hasActiveDiscount && appliedPromo && discountedItemPrice < iPrice ? (
-                       <div className="text-right">
-                         <div className="text-sm text-slate-500 line-through">${iPrice.toFixed(2)}</div>
-                         <div className={`text-xl font-black ${appliedPromo.target === 'guild' ? 'text-amber-400' : 'text-emerald-400'} whitespace-nowrap`}>
-                           ${discountedItemPrice.toFixed(2)}
-                         </div>
-                       </div>
-                    ) : (
-                       <div className="text-xl font-black text-white whitespace-nowrap">${iPrice.toFixed(2)}</div>
-                    )}
+                  {/* Блок ціни та видалення на десктопі */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 shrink-0" style={{ borderColor: 'var(--border-default)' }}>
+                    <span className="text-[11px] sm:hidden font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>
+                      {t('cart.paymentTitle', 'Ціна:')}
+                    </span>
+                    <PriceDisplay 
+                      price={hasActiveDiscount && appliedPromo && discountedItemPrice < iPrice ? discountedItemPrice : iPrice} 
+                      originalPrice={hasActiveDiscount && appliedPromo && discountedItemPrice < iPrice ? iPrice : null}
+                    />
+
+                    {/* Кнопка видалення на десктопі */}
+                    <button 
+                      onClick={() => removeFromCart(item.cartId)} 
+                      className="hidden sm:flex p-2 rounded-xl border transition-all hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 shrink-0 items-center justify-center"
+                      style={{
+                        background: 'var(--bg-base)',
+                        borderColor: 'var(--border-default)',
+                        color: 'var(--text-secondary)'
+                      }}
+                      title={t('cart.remove', 'Видалити')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  <button onClick={() => removeFromCart(item.cartId)} className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 bg-slate-900/50 rounded-lg hover:bg-red-950/50" title={t('cart.remove')}>
-                    <Trash2 className="w-5 h-5" />
+                  {/* Кнопка видалення на мобільних */}
+                  <button 
+                    onClick={() => removeFromCart(item.cartId)} 
+                    className="sm:hidden absolute top-3 right-3 p-1.5 rounded-lg border transition-colors hover:text-red-400"
+                    style={{
+                      background: 'var(--bg-base)',
+                      borderColor: 'var(--border-default)',
+                      color: 'var(--text-secondary)'
+                    }}
+                    title={t('cart.remove', 'Видалити')}
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               );
@@ -363,162 +627,344 @@ const Cart = () => {
           )}
         </div>
 
-        <div className="lg:col-span-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 sticky top-24">
-            
+        {/* ======================================================== */}
+        {/* БОКОВИЙ БЛОК: СПОСІБ ОПЛАТИ ТА ПІДСУМОК */}
+        {/* ======================================================== */}
+        <div className="lg:col-span-5 xl:col-span-4">
+          <div 
+            className="rounded-3xl p-4 sm:p-6 sticky top-24 border shadow-2xl backdrop-blur-xl"
+            style={{
+              background: 'var(--bg-card)',
+              borderColor: 'var(--border-default)'
+            }}
+          >
+            {/* Офлайн банер */}
             {hasOfflineItems && (
-              <div className="mb-6 bg-gradient-to-r from-amber-900/40 to-orange-900/20 border border-amber-500/50 rounded-2xl p-5 shadow-[0_0_15px_rgba(245,158,11,0.1)] flex items-start gap-4 animate-in fade-in slide-in-from-top-2">
-                <div className="bg-amber-500/20 p-2.5 rounded-xl flex-shrink-0">
-                  <Moon className="w-6 h-6 text-amber-400" />
+              <div 
+                className="mb-5 rounded-2xl p-3.5 sm:p-4 border flex items-start gap-3"
+                style={{
+                  background: 'var(--gold-muted)',
+                  borderColor: 'rgba(245, 158, 11, 0.4)'
+                }}
+              >
+                <div className="p-2 rounded-xl flex-shrink-0" style={{ background: 'rgba(245, 158, 11, 0.2)' }}>
+                  <Moon className="w-5 h-5" style={{ color: 'var(--gold)' }} />
                 </div>
                 <div>
-                  <h3 className="text-amber-400 font-bold text-base mb-1">{t('cart.offlineTitle', 'Увага! Офлайн-режим')}</h3>
-                  <p className="text-amber-200/80 text-sm leading-relaxed whitespace-pre-wrap">
+                  <h3 className="font-bold text-xs sm:text-sm mb-1" style={{ color: 'var(--gold)' }}>
+                    {t('cart.offlineTitle', 'Увага! Офлайн-режим')}
+                  </h3>
+                  <p className="text-[11px] sm:text-xs leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
                     {storeStatus.offline_message}
                   </p>
-                  <p className="text-amber-500 text-xs font-bold mt-2">
-                    * {t('cart.offlineSubtext', 'Ви можете сплатити замовлення зараз, і воно буде виконане першим у черзі.')}
+                  <p className="text-[10px] sm:text-[11px] font-bold mt-1.5" style={{ color: 'var(--gold)' }}>
+                    * ⛔ Оформлення замовлень для цих товарів тимчасово на паузі. Ви можете обрати інші позиції або зачекати повернення оператора.
                   </p>
                 </div>
               </div>
             )}
 
-            <h2 className="text-xl font-bold text-white mb-6">Спосіб оплати</h2>
+            <h2 className="text-base sm:text-lg font-black mb-4 flex items-center justify-between" style={{ color: 'var(--text-primary)' }}>
+              <span>{t('cart.paymentMethodTitle', 'Спосіб оплати')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}>
+                {cart.length} {t('cart.item', 'поз.')}
+              </span>
+            </h2>
             
-            <div className="space-y-3 mb-8">
+            {/* СПОСОБИ ОПЛАТИ — АДАПТОВАНО ДЛЯ БУДЬ-ЯКИХ ЕКРАНІВ */}
+            <div className="space-y-2.5 sm:space-y-3 mb-6">
               
-              {/* 🔥 ОПЦІЯ 1: БАЛАНС 🔥 */}
-              <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
-                (!isLoggedIn || !user || user.balance < localTotal || hasAccountInCart || isTopupCart) 
-                  ? 'opacity-50 cursor-not-allowed bg-slate-900 border-slate-800 text-slate-600' 
-                  : paymentMethod === 'balance' 
-                    ? 'bg-amber-900/20 border-amber-500 cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.15)]' 
-                    : 'bg-slate-800 border-slate-700 hover:border-slate-500 cursor-pointer'
-              }`}>
-                <input 
-                  type="radio" 
-                  name="payment" 
-                  value="balance" 
-                  disabled={!isLoggedIn || !user || user.balance < localTotal || hasAccountInCart || isTopupCart} 
-                  checked={paymentMethod === 'balance'} 
-                  onChange={() => setPaymentMethod('balance')} 
-                  className="hidden" 
-                />
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border ${paymentMethod === 'balance' ? 'bg-amber-500 border-amber-400 text-slate-900 shadow-lg' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                  <Coins className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-black text-base truncate ${paymentMethod === 'balance' ? 'text-amber-400' : 'text-slate-300'}`}>
-                    Оплата з балансу (Монети)
-                  </div>
-                  <div className="text-xs text-slate-500 font-medium mt-0.5">
-                    {user ? `Доступно: ${user.balance?.toFixed(2)} USDT` : 'Потрібна авторизація'}
-                    {user && user.balance < localTotal && <span className="text-red-400 ml-1">(Недостатньо)</span>}
-                    {hasAccountInCart && <span className="text-amber-500/80 ml-1">(Не для акаунтів)</span>}
-                    {isTopupCart && <span className="text-amber-500/80 ml-1">(Поповнення)</span>}
-                  </div>
-                </div>
-                {paymentMethod === 'balance' && <CheckCircle2 className="w-6 h-6 text-amber-500 flex-shrink-0 ml-2" />}
-              </label>
+              {/* ОПЦІЯ 1: БАЛАНС */}
+              {(() => {
+                const isBalanceDisabled = !isLoggedIn || !user || user.balance < localTotal || hasAccountInCart || isTopupCart;
+                const isBalanceSelected = paymentMethod === 'balance';
 
-              {/* 🔥 ОПЦІЯ 2: ПРЯМА ОПЛАТА В ЧАТІ 🔥 */}
-              <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                paymentMethod === 'p2p' 
-                  ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]' 
-                  : 'bg-slate-800 border-slate-700 hover:border-slate-500'
-              }`}>
-                <input 
-                  type="radio" 
-                  name="payment" 
-                  value="p2p" 
-                  checked={paymentMethod === 'p2p'} 
-                  onChange={() => setPaymentMethod('p2p')} 
-                  className="hidden" 
-                />
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border ${paymentMethod === 'p2p' ? 'bg-blue-500 border-blue-400 text-white shadow-lg' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                  <MessageCircle className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-black text-base truncate ${paymentMethod === 'p2p' ? 'text-white' : 'text-slate-300'}`}>
-                    Чат з Адміністратором
-                  </div>
-                  <div className="text-xs text-slate-500 font-medium mt-0.5 leading-relaxed">
-                    Пряма оплата (Крипта / Карта) після оформлення.
-                  </div>
-                </div>
-                {paymentMethod === 'p2p' && <CheckCircle2 className="w-6 h-6 text-blue-500 flex-shrink-0 ml-2" />}
-              </label>
+                return (
+                  <label 
+                    className={`flex items-start sm:items-center gap-2.5 sm:gap-3.5 p-3 sm:p-3.5 rounded-2xl border-2 transition-all ${
+                      isBalanceDisabled 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'cursor-pointer hover:border-amber-400/60'
+                    }`}
+                    style={isBalanceSelected ? {
+                      background: 'var(--gold-muted)',
+                      borderColor: 'var(--gold)',
+                      boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)'
+                    } : {
+                      background: 'var(--bg-base)',
+                      borderColor: 'var(--border-default)',
+                    }}
+                  >
+                    <input 
+                      type="radio" 
+                      name="payment" 
+                      value="balance" 
+                      disabled={isBalanceDisabled} 
+                      checked={isBalanceSelected} 
+                      onChange={() => setPaymentMethod('balance')} 
+                      className="hidden" 
+                    />
+                    <div 
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border mt-0.5 sm:mt-0"
+                      style={isBalanceSelected ? {
+                        background: 'var(--gold)',
+                        borderColor: 'rgba(255,255,255,0.4)',
+                        color: '#0d1117'
+                      } : {
+                        background: 'var(--bg-card)',
+                        borderColor: 'var(--border-default)',
+                        color: 'var(--gold)'
+                      }}
+                    >
+                      <Coins className="w-5 h-5 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div 
+                        className="font-bold text-xs sm:text-sm leading-snug break-words"
+                        style={{ color: isBalanceSelected ? 'var(--gold)' : 'var(--text-primary)' }}
+                      >
+                        {t('cart.payFromBalance', 'Оплата з балансу')} <span className="opacity-70 text-[10px] sm:text-xs font-normal">({t('cart.coins', 'Монети')})</span>
+                      </div>
+                      <div className="text-[10px] sm:text-xs font-medium mt-0.5 flex flex-wrap items-center gap-1 leading-normal" style={{ color: 'var(--text-secondary)' }}>
+                        <span>
+                          {user ? `${t('cart.available', 'Доступно:')} ${user.balance?.toFixed(2)} USDT` : t('cart.needAuth', 'Потрібна авторизація')}
+                        </span>
+                        {user && user.balance < localTotal && (
+                          <span className="text-red-400 font-bold bg-red-950/40 px-1 rounded">({t('cart.insufficient', 'Недостатньо')})</span>
+                        )}
+                        {hasAccountInCart && (
+                          <span className="text-amber-400 font-bold bg-amber-950/40 px-1 rounded">({t('cart.notForAccounts', 'Не для акаунтів')})</span>
+                        )}
+                        {isTopupCart && (
+                          <span className="text-amber-400 font-bold bg-amber-950/40 px-1 rounded">({t('cart.isTopup', 'Поповнення')})</span>
+                        )}
+                      </div>
+                    </div>
+                    {isBalanceSelected && (
+                      <CheckCircle2 className="w-5 h-5 flex-shrink-0 ml-1 mt-0.5 sm:mt-0" style={{ color: 'var(--gold)' }} />
+                    )}
+                  </label>
+                );
+              })()}
+
+              {/* ОПЦІЯ 2: ПРЯМА ОПЛАТА В ЧАТІ */}
+              {(() => {
+                const isChatSelected = paymentMethod === 'p2p';
+
+                return (
+                  <label 
+                    className="flex items-start sm:items-center gap-2.5 sm:gap-3.5 p-3 sm:p-3.5 rounded-2xl border-2 cursor-pointer transition-all hover:border-blue-400/60"
+                    style={isChatSelected ? {
+                      background: 'var(--accent-muted)',
+                      borderColor: 'var(--border-accent)',
+                      boxShadow: '0 0 15px var(--accent-glow)'
+                    } : {
+                      background: 'var(--bg-base)',
+                      borderColor: 'var(--border-default)',
+                    }}
+                  >
+                    <input 
+                      type="radio" 
+                      name="payment" 
+                      value="p2p" 
+                      checked={isChatSelected} 
+                      onChange={() => setPaymentMethod('p2p')} 
+                      className="hidden" 
+                    />
+                    <div 
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border mt-0.5 sm:mt-0"
+                      style={isChatSelected ? {
+                        background: 'var(--accent)',
+                        borderColor: 'rgba(255,255,255,0.4)',
+                        color: '#ffffff'
+                      } : {
+                        background: 'var(--bg-card)',
+                        borderColor: 'var(--border-default)',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      <MessageCircle className="w-5 h-5 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div 
+                        className="font-bold text-xs sm:text-sm leading-snug break-words"
+                        style={{ color: isChatSelected ? 'var(--text-accent)' : 'var(--text-primary)' }}
+                      >
+                        {t('cart.chatWithAdmin', 'Чат з Адміністратором')}
+                      </div>
+                      <div className="text-[10px] sm:text-xs font-medium mt-0.5 leading-normal" style={{ color: 'var(--text-secondary)' }}>
+                        {t('cart.chatPaymentDesc', 'Пряма оплата (Крипта / Карта) після оформлення.')}
+                      </div>
+                    </div>
+                    {isChatSelected && (
+                      <CheckCircle2 className="w-5 h-5 flex-shrink-0 ml-1 mt-0.5 sm:mt-0" style={{ color: 'var(--text-accent)' }} />
+                    )}
+                  </label>
+                );
+              })()}
             </div>
 
-            <div className="mb-6 pt-6 border-t border-slate-800">
-              <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                <Ticket className="w-4 h-4 text-emerald-400" /> {t('cart.promoTitle')}
+            {/* ПРОМОКОД */}
+            <div className="mb-5 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
+              <h3 className="text-xs sm:text-sm font-bold mb-2.5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <Ticket className="w-4 h-4" style={{ color: 'var(--text-accent)' }} /> 
+                <span>{t('cart.promoTitle', 'У вас є промокод?')}</span>
               </h3>
               {!appliedPromo ? (
                 <div className="flex flex-col sm:flex-row gap-2 w-full">
-                  <input type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())} placeholder={t('cart.promoPlaceholder')} className="flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm font-bold uppercase tracking-wider focus:border-emerald-500 outline-none transition-colors placeholder:text-slate-500" />
-                  <button onClick={handleApplyPromo} disabled={isApplyingPromo || !promoInput.trim()} className="w-full sm:w-auto whitespace-nowrap flex-shrink-0 px-4 py-2.5 bg-slate-800 hover:bg-emerald-600 border border-slate-700 hover:border-emerald-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    {t('cart.applyBtn')}
+                  <input 
+                    type="text" 
+                    value={promoInput} 
+                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())} 
+                    placeholder={t('cart.promoPlaceholder', 'Введіть код')} 
+                    className="flex-1 min-w-0 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider focus:outline-none transition-colors border shadow-inner"
+                    style={{
+                      background: 'var(--bg-base)',
+                      borderColor: 'var(--border-default)',
+                      color: 'var(--text-primary)'
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = 'var(--border-accent)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
+                  />
+                  <button 
+                    onClick={handleApplyPromo} 
+                    disabled={isApplyingPromo || !promoInput.trim()} 
+                    className="w-full sm:w-auto px-4 py-2 border font-bold text-xs sm:text-sm rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                    style={{
+                      background: 'var(--bg-card)',
+                      borderColor: 'var(--border-default)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    {t('cart.applyBtn', 'Застосувати')}
                   </button>
                 </div>
               ) : renderPromoDetails()}
             </div>
 
-            <div className="space-y-3 mb-6 pt-4 border-t border-slate-800">
-              <div className="flex justify-between text-sm text-slate-400">
-                <span>{t('cart.summary')}</span> <span className={appliedPromo ? 'line-through opacity-70' : ''}>${localSubtotal.toFixed(2)}</span>
+            {/* ПІДСУМОК */}
+            <div className="space-y-2.5 mb-5 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
+              <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <span>{t('cart.summary', 'Сума товарів:')}</span> 
+                <PriceDisplay price={localSubtotal} size="sm" />
               </div>
+
               {appliedPromo && (
-                <div className={`flex justify-between text-sm font-bold ${appliedPromo.target === 'guild' ? 'text-amber-400 bg-amber-900/20 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'text-emerald-400 bg-emerald-900/20 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]'} p-2 rounded-lg border`}>
-                  <span>{appliedPromo.target === 'guild' ? 'Гільдійська знижка' : t('cart.savings')}</span> 
+                <div 
+                  className="flex justify-between text-xs sm:text-sm font-bold p-2.5 rounded-xl border"
+                  style={{
+                    background: appliedPromo.target === 'guild' ? 'var(--gold-muted)' : 'rgba(16, 185, 129, 0.12)',
+                    borderColor: appliedPromo.target === 'guild' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)',
+                    color: appliedPromo.target === 'guild' ? 'var(--gold)' : '#34d399'
+                  }}
+                >
+                  <span>{appliedPromo.target === 'guild' ? t('cart.guildDiscount', 'Гільдійська знижка') : t('cart.savings', 'Економія:')}</span> 
                   <span>{appliedPromo.type === 'item' || appliedPromo.type === 'gift' ? `+ ${appliedPromo.value}` : `-$${localDiscount.toFixed(2)}`}</span>
                 </div>
               )}
-              <div className="flex justify-between text-2xl font-black text-white pt-3 border-t border-slate-800">
-                <span>{t('cart.total')}</span> 
-                <span className={appliedPromo ? (appliedPromo.target === 'guild' ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]') : paymentMethod === 'balance' ? 'text-amber-400' : 'text-blue-400'}>
-                  {paymentMethod === 'balance' ? `${localTotal.toFixed(2)} ${t('cart.coins')}` : `$${localTotal.toFixed(2)}`}
-                </span>
+
+              <div className="flex justify-between items-baseline text-xl sm:text-2xl font-black pt-3 border-t" style={{ borderColor: 'var(--border-default)' }}>
+                <span style={{ color: 'var(--text-primary)' }}>{t('cart.total', 'Разом:')}</span> 
+                {paymentMethod === 'balance' ? (
+                  <span style={{ color: 'var(--gold)' }} className="text-xl font-black flex items-center gap-1">
+                    <Coins className="w-5 h-5 text-amber-400" />
+                    {localTotal.toFixed(2)} {t('cart.coins', 'Монет')}
+                  </span>
+                ) : (
+                  <PriceDisplay price={localTotal} size="lg" />
+                )}
               </div>
             </div>
 
-            {parseFloat(pendingCashback) > 0 && cart.length > 0 && paymentMethod !== 'balance' && (
-              <div className="bg-gradient-to-r from-amber-500/10 to-yellow-500/5 border border-amber-500/20 rounded-2xl p-4 mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-                    <Coins className="w-5 h-5" />
+            {/* КЕШБЕК: ТІЛЬКИ ПРИ ОПЛАТІ З БАЛАНСУ */}
+            {parseFloat(pendingCashback) > 0 && cart.length > 0 && paymentMethod === 'balance' && (
+              <div 
+                className="border rounded-2xl p-3 sm:p-3.5 mb-4 flex items-center justify-between animate-in fade-in duration-300"
+                style={{
+                  background: 'var(--gold-muted)',
+                  borderColor: 'rgba(245, 158, 11, 0.35)'
+                }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm" style={{ background: 'rgba(245, 158, 11, 0.25)', color: 'var(--gold)' }}>
+                    <Coins className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-300 font-bold tracking-wider uppercase">{t('cart.cashback')}</div>
-                    <div className="text-[10px] text-amber-500/80 font-medium">{user ? t('cart.cashbackAvail') : t('cart.cashbackAuth')}</div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                      <span>{t('cart.cashback', 'Кешбек')}</span>
+                      {user?.tier_name && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-black uppercase">
+                          {user.tier_name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] font-medium" style={{ color: 'var(--gold)' }}>
+                      {t('cart.cashbackCompletedNotice', 'Буде зараховано після статусу «Виконано»')}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-lg font-black text-amber-400">+{pendingCashback}</span>
-                  <span className="text-[10px] font-bold text-amber-500/70 ml-1">USDT</span>
+                  <span className="text-base sm:text-lg font-black" style={{ color: 'var(--gold)' }}>+{pendingCashback}</span>
+                  <span className="text-[10px] font-bold opacity-80 ml-1" style={{ color: 'var(--gold)' }}>USDT</span>
                 </div>
               </div>
             )}
 
+            {/* ПОПЕРЕДЖЕННЯ: ЯКЩО ОБРАНО ОПЛАТУ В ЧАТІ, КЕШБЕК НЕ НАРАХОВУЄТЬСЯ */}
+            {parseFloat(pendingCashback) > 0 && cart.length > 0 && paymentMethod !== 'balance' && (
+              <div 
+                className="border rounded-2xl p-3 sm:p-3.5 mb-4 flex items-start gap-2.5 animate-in fade-in duration-300"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  borderColor: 'rgba(245, 158, 11, 0.3)'
+                }}
+              >
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(245, 158, 11, 0.2)', color: 'var(--gold)' }}>
+                  <Coins className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-amber-400 leading-snug">
+                    {t('cart.cashbackBalanceOnlyNotice', '⚠️ Кешбек нараховується тільки при оплаті монетами сайту (з балансу)!')}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-1 leading-normal">
+                    {t('cart.cashbackBalanceOnlyDesc', 'Оберіть спосіб «Оплата з балансу», щоб отримати кешбек після виконання замовлення.')}
+                    <span className="ml-1.5 font-black text-amber-400">+{pendingCashback} USDT</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ГОЛОВНА КНОПКА ЗАМОВЛЕННЯ */}
             <button 
               onClick={handleCheckout} 
-              disabled={cart.length === 0} 
-              className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                cart.length === 0 
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
-                  : paymentMethod === 'balance' 
-                    ? 'bg-amber-600 hover:bg-amber-500 text-slate-950 hover:scale-[1.02] active:scale-[0.98]' 
-                    : 'bg-blue-600 hover:bg-blue-500 text-white hover:scale-[1.02] active:scale-[0.98]'
-              }`}
+              disabled={cart.length === 0 || hasOfflineItems} 
+              className="w-full font-black py-3.5 sm:py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={cart.length === 0 || hasOfflineItems ? {
+                background: 'var(--bg-base)',
+                borderColor: 'var(--border-default)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-default)'
+              } : paymentMethod === 'balance' ? {
+                background: 'var(--gold)',
+                color: '#0d1117',
+                boxShadow: '0 0 20px rgba(245, 158, 11, 0.35)'
+              } : {
+                background: 'var(--accent)',
+                color: '#ffffff',
+                boxShadow: '0 0 20px var(--accent-glow)'
+              }}
             >
               {cart.length === 0 
-                ? t('cart.empty') 
-                : paymentMethod === 'balance' 
-                  ? 'Сплатити з балансу' 
-                  : 'Створити тікет на оплату'}
+                ? t('cart.empty', 'Кошик порожній') 
+                : hasOfflineItems
+                  ? '🌙 Замовлення тимчасово призупинено (Офлайн)'
+                  : paymentMethod === 'balance' 
+                    ? t('cart.payBalanceBtn', 'Сплатити з балансу') 
+                    : t('cart.createTicketBtn', 'Створити тікет на оплату')}
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );

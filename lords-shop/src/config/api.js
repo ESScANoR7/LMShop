@@ -1,5 +1,12 @@
 // Централізований конфіг для API запитів
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Якщо задано VITE_API_URL — використовуємо його.
+// Якщо сторінка відкрита локально на Vite dev-сервері (порт 5173) — направляємо на бекенд http://localhost:8000.
+// У всіх інших випадках (ngrok, Telegram WebApp на телефоні, продакшен) — використовуємо відносний шлях '',
+// щоб браузер звертався до того самого домену та протоколу (HTTPS без Mixed Content блокувань).
+export const API_URL = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || '')
+  : (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.port === '5173' ? 'http://localhost:8000' : ''));
+
 export const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10);
 
 export const API_ENDPOINTS = {
@@ -55,11 +62,19 @@ export const API_ENDPOINTS = {
   ADMIN_USERS: '/api/admin/users',
   ADMIN_USER_BAN: (id) => `/api/admin/users/${id}/ban`,
   ADMIN_USER_UNBAN: (id) => `/api/admin/users/${id}/unban`,
+  ADMIN_USER_BALANCE: (id) => `/api/admin/users/${id}/balance`,
+  ADMIN_CHANGE_PASSWORD: '/api/admin/change-password',
+  ADMIN_DASHBOARD_STATS: '/api/admin/dashboard/stats',
 
   // Admin - інші товари
   OTHER_ITEM_CREATE: '/api/other-items',
   OTHER_ITEM_UPDATE: (id) => `/api/other-items/${id}`,
   OTHER_ITEM_DELETE: (id) => `/api/other-items/${id}`,
+  OTHER_ITEM_PUBLISH_TG: (id) => `/api/other-items/${id}/publish-tg`,
+
+  // Telegram Вітрина (Синхронізація)
+  TELEGRAM_SYNC_STOREFRONT: '/api/telegram/sync-storefront',
+  TELEGRAM_CLEAR_STOREFRONT: '/api/telegram/storefront-messages',
 };
 
 /**
@@ -72,4 +87,23 @@ export const getFullUrl = (endpoint) => {
     throw new Error('Параметризований endpoint повинен бути викликаний з ID перед передачею до getFullUrl');
   }
   return `${API_URL}${endpoint}`;
+};
+
+/**
+ * Конвертує URL зображення (відносний або абсолютний) у повний URL
+ * Потрібно, бо зображення тепер зберігаються як /static/uploads/... (відносно бекенду)
+ * але фронтенд на іншому порті
+ * @param {string} imageUrl - URL зображення з бази даних
+ * @returns {string} - Повний URL до зображення
+ */
+export const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return '';
+  // Якщо URL містить localhost або 127.0.0.1 (старі записи), видаляємо його, роблячи шлях відносним
+  let cleanUrl = imageUrl.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, '');
+  // Зовнішні сторонні URL (наприклад з imgur, cloudinary тощо) — повертаємо без змін
+  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) return cleanUrl;
+  // Забезпечуємо коректний слеш
+  if (!cleanUrl.startsWith('/')) cleanUrl = `/${cleanUrl}`;
+  // Відносний шлях — додаємо API_URL
+  return `${API_URL}${cleanUrl}`;
 };

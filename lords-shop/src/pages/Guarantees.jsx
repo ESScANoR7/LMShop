@@ -100,7 +100,7 @@ const Guarantees = () => {
               </button>
               
               <div 
-                className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === index ? 'max-h-40 pb-5 opacity-100' : 'max-h-0 opacity-0'}`}
+                className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === index ? 'max-h-96 pb-5 opacity-100' : 'max-h-0 opacity-0'}`}
               >
                 <p className="text-sm text-slate-400 leading-relaxed border-t border-slate-800 pt-4">
                   {faq.answer}

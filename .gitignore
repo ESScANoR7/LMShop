@@ -2,6 +2,7 @@
 node_modules/
 dist/
 .env
+*.env.production
 .idea/
 .DS_Store
 *.swp
@@ -14,6 +15,21 @@ venv/
 .venv/
 lords_shop.db
 
+# Uploads (ignore user files, preserve folder structure)
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Archives & Temporary files
+_archive/
+*.log
+
 SECURITY_AND_UI_IMPROVEMENTS.md
 RELEASE_READINESS_REPORT.md
 I18N_TRANSLATION_GUIDE.md
+# Scratch & Local temporary files
+scratch/
+iconlm,/
+backend/database.db
+*.db

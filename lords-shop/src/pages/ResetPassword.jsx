@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Eye, EyeOff, ShieldCheck, Loader2, ArrowRight, XCircle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiPost } from '../config/apiClient';
+import { API_URL } from '../config/api';
 
 // ==========================================
 // КОМПОНЕНТ ВАЛІДАЦІЇ ПАРОЛІВ
@@ -67,22 +69,11 @@ const ResetPassword = () => {
 
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, new_password: password })
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        toast.success(data.message || 'Пароль успішно змінено!', { icon: '🎉' });
-        navigate('/profile');
-      } else {
-        toast.error(data.detail || 'Виникла помилка');
-      }
+      const data = await apiPost(`${API_URL}/api/reset-password`, { token, new_password: password });
+      toast.success(data?.message || 'Пароль успішно змінено!', { icon: '🎉' });
+      navigate('/profile');
     } catch (error) {
-      toast.error('Помилка з\'єднання з сервером');
+      toast.error(error.message || 'Виникла помилка');
     } finally {
       setIsLoading(false);
     }

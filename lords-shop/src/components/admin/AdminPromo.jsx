@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Settings, Trash2, Save, Ticket, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Plus, Settings, Trash2, Save, Ticket, ShieldAlert, CheckCircle2, Gift, Percent, DollarSign, HelpCircle, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiPost, apiDelete, handleApiError } from '../../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../../config/api';
 
 const AdminPromo = ({ 
-  adminPromoList, 
+  adminPromoList = [], 
   fetchPromocodes, 
-  adminAccounts, 
-  adminOtherItems, 
-  adminRssPacks, 
-  adminGemsRates 
+  adminAccounts = [], 
+  adminOtherItems = [], 
+  adminRssPacks = [], 
+  adminGemsRates = [] 
 }) => {
   const { t } = useTranslation();
 
@@ -23,14 +23,15 @@ const AdminPromo = ({
   
   // 🔥 ТЕГ ТА КАТЕГОРІЇ ГІЛЬДІЇ 🔥
   const [guildTag, setGuildTag] = useState('');
-  const [guildCategories, setGuildCategories] = useState(['rss_all', 'gem_all', 'oth_all']); // Без акаунтів за замовчуванням!
+  const [guildCategories, setGuildCategories] = useState(['rss_all', 'gem_all', 'oth_all']);
   
   const [maxUses, setMaxUses] = useState(0);
   const [minAmount, setMinAmount] = useState(0);
   const [expiryDate, setExpiryDate] = useState('');
 
+  // Генерація випадкового коду
   const generateRandomCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = 'LORDS-';
     for (let i = 0; i < 6; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -38,10 +39,12 @@ const AdminPromo = ({
     setPromoCode(result);
   };
 
+
   const addPromoCode = async () => {
-    // 🔥 Виправлена валідація: для гільдії promoValue не обов'язкове 🔥
-    if (!promoCode) return toast.error(t('common.error') || 'Введіть код');
-    if (promoTarget !== 'guild' && !promoValue) return toast.error(t('common.error') || 'Введіть значення');
+    if (!promoCode.trim()) return toast.error('Введіть промокод!');
+    if (promoTarget !== 'guild' && !promoValue && promoValue !== 0) {
+      return toast.error('Вкажіть розмір знижки або опис подарунка!');
+    }
 
     let targetIds = [];
     let targetNames = [];
@@ -77,7 +80,6 @@ const AdminPromo = ({
     const newPromo = {
       code: promoCode.trim().toUpperCase(),
       type: promoTarget === 'guild' ? 'percent' : promoType, 
-      // 🔥 Для гільдії передаємо технічний "0", бо ціна все одно рахується від base_price
       value: promoTarget === 'guild' ? "0" : String(promoValue),
       target: promoTarget,
       max_uses: parseInt(maxUses) || 0,
@@ -89,20 +91,27 @@ const AdminPromo = ({
 
     try {
       await apiPost(getFullUrl(API_ENDPOINTS.PROMOCODE_CREATE), newPromo);
-      toast.success(t('common.success'));
-      fetchPromocodes();
-      setPromoCode(''); setPromoValue(''); setMaxUses(0); setMinAmount(0); setExpiryDate(''); 
-      setSelectedSpecificItems([]); setGuildTag(''); setGuildCategories(['rss_all', 'gem_all', 'oth_all']);
+      toast.success('Промокод успішно створено!');
+      if (fetchPromocodes) fetchPromocodes();
+      setPromoCode(''); 
+      setPromoValue(''); 
+      setMaxUses(0); 
+      setMinAmount(0); 
+      setExpiryDate(''); 
+      setSelectedSpecificItems([]); 
+      setGuildTag(''); 
+      setGuildCategories(['rss_all', 'gem_all', 'oth_all']);
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
   };
 
   const removePromoCode = async (id) => {
+    if (!window.confirm('Ви впевнені, що хочете видалити цей промокод?')) return;
     try {
       await apiDelete(getFullUrl(API_ENDPOINTS.PROMOCODE_DELETE(id)));
-      fetchPromocodes();
-      toast.success(t('common.success'));
+      if (fetchPromocodes) fetchPromocodes();
+      toast.success('Промокод видалено');
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
@@ -112,137 +121,260 @@ const AdminPromo = ({
     if (!items || items.length === 0) return 'Усі товари';
     let cats = [];
     if (items.includes('rss_all')) cats.push('Ресурси');
-    if (items.includes('gem_all')) cats.push('Геми');
+    if (items.includes('gem_all')) cats.push('Сапфіри');
     if (items.includes('oth_all')) cats.push('Послуги');
     if (items.includes('acc_all')) cats.push('Акаунти');
     return cats.join(', ');
   };
 
+  const getTargetBadge = (promo, parsedNames, parsedTargets) => {
+    switch (promo.target) {
+      case 'rss':
+        return <span className="text-xs bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg font-bold">🌾 Тільки Ресурси (RSS)</span>;
+      case 'gems':
+        return <span className="text-xs bg-cyan-950/40 text-cyan-400 border border-cyan-500/30 px-2.5 py-0.5 rounded-lg font-bold">💎 Тільки Сапфіри (Gems)</span>;
+      case 'other':
+        return <span className="text-xs bg-purple-950/40 text-purple-400 border border-purple-500/30 px-2.5 py-0.5 rounded-lg font-bold">📦 Тільки Послуги</span>;
+      case 'accounts':
+        return <span className="text-xs bg-rose-950/40 text-rose-400 border border-rose-500/30 px-2.5 py-0.5 rounded-lg font-bold">🏰 Тільки Акаунти</span>;
+      case 'specific':
+        return <span className="text-xs bg-blue-950/40 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-lg font-bold">🎯 Обрані товари ({parsedTargets.length || 0})</span>;
+      case 'guild':
+        return <span className="text-xs bg-amber-950/40 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-lg font-bold">🛡️ Гільдія: [{parsedNames[0] || 'Свої'}] ({getGuildCatsStr(parsedTargets)})</span>;
+      default:
+        return <span className="text-xs bg-white/[0.04] text-slate-300 border border-white/[0.08] px-2.5 py-0.5 rounded-lg font-bold">🌐 Всі товари</span>;
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg">
+      
+      {/* ВЕРХНЯ ШАПКА */}
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#0c1017] border border-white/[0.08] p-6 rounded-3xl shadow-2xl gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">{t('admin.promo.title')}</h1>
-          <p className="text-sm text-slate-400">{t('admin.promo.desc')}</p>
+          <h1 className="text-2xl font-black text-white mb-1 flex items-center gap-3">
+            <span className="p-2.5 rounded-xl bg-gradient-to-br from-red-600/20 to-rose-600/10 border border-red-500/20 text-rose-500">
+              <Ticket className="w-6 h-6" />
+            </span>
+            Промокоди та Знижки
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Створюйте знижки у %, фіксовані бонуси в $, безкоштовні паки ресурсів або спеціальні ціни для гільдій
+          </p>
         </div>
-        <button onClick={addPromoCode} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all hover:-translate-y-1">
-          <Save className="w-5 h-5" /> {t('admin.promo.saveBtn')}
+        
+        <button 
+          onClick={addPromoCode} 
+          className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_18px_rgba(225,29,72,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Save className="w-4 h-4" /> Створити промокод
         </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Plus className="w-5 h-5 text-blue-400" /> {t('admin.promo.createTitle')}
+        
+        {/* ЛІВА КОЛОНКА: ФОРМА СТВОРЕННЯ */}
+        <div className="xl:col-span-7 bg-[#0c1017] border border-white/[0.08] rounded-3xl p-6 shadow-2xl space-y-6">
+          
+          <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Plus className="w-5 h-5 text-rose-500" /> Налаштування нового промокоду
             </h3>
             <button 
               onClick={generateRandomCode}
-              className="text-xs font-bold text-blue-400 hover:text-white flex items-center gap-1 transition-colors"
+              type="button"
+              className="text-xs font-bold text-rose-400 hover:text-white flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20"
             >
-              <Settings className="w-3 h-3" /> {t('admin.promo.genRandom')}
+              <Settings className="w-3.5 h-3.5" /> Згенерувати код
             </button>
           </div>
 
-          <div className="space-y-6">
+
+          <div className="space-y-5">
+            
+            {/* РЯДОК 1: КОД, ТИП ЗНИЖКИ, РОЗМІР/ЗНАЧЕННЯ */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* КОД ПРОМОКОДУ */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.codeLabel')}</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Промокод (текст)
+                </label>
                 <input 
                   type="text" 
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-black tracking-widest" 
+                  placeholder="OPEN-FREE-RSS"
+                  className="w-full bg-[#070b12] border border-white/[0.08] rounded-xl px-4 py-3 text-white font-black font-mono tracking-widest focus:border-red-500 outline-none transition-colors text-sm" 
                 />
+                <span className="text-[10px] text-slate-500 mt-1 block">Те, що клієнт вводить у кошику</span>
               </div>
+
+              {/* ТИП ЗНИЖКИ */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.typeLabel')}</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Тип знижки
+                </label>
                 <select 
                   value={promoTarget === 'guild' ? 'percent' : promoType} 
                   onChange={(e) => setPromoType(e.target.value)} 
                   disabled={promoTarget === 'guild'}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-[#070b12] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <option value="percent">{t('admin.promo.typePercent')}</option>
-                  <option value="fixed">{t('admin.promo.typeFixed')}</option>
-                  <option value="item">{t('admin.promo.typeItem')}</option>
+                  <option value="percent">📉 Відсоток (%) — 100% = Free</option>
+                  <option value="fixed">💵 Фіксована сума ($)</option>
+                  <option value="item">🎁 Подарунок (Item/Text)</option>
                 </select>
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  {promoType === 'percent' ? 'Знижка у % від вартості' : promoType === 'fixed' ? 'Точна сума в доларах' : 'Бонусний подарунок'}
+                </span>
               </div>
+
+              {/* ЗНАЧЕННЯ / РОЗМІР ЗНИЖКИ (ЗРОБЛЕНО ДИНАМІЧНИМ ТА ЗРОЗУМІЛИМ!) */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.valueLabel')}</label>
-                <input 
-                  type={promoType === 'item' ? "text" : "number"}
-                  value={promoTarget === 'guild' ? '' : promoValue}
-                  onChange={(e) => setPromoValue(e.target.value)}
-                  disabled={promoTarget === 'guild'}
-                  placeholder={promoTarget === 'guild' ? 'До собівартості' : promoType === 'percent' ? t('admin.promo.valuePlaceholderPercent') : promoType === 'fixed' ? t('admin.promo.valuePlaceholderFixed') : t('admin.promo.valuePlaceholderItem')}
-                  className={`w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-emerald-400 font-bold text-sm focus:border-blue-500 outline-none ${promoTarget === 'guild' ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                />
+                <label className="block text-xs font-bold text-emerald-400 mb-1.5 uppercase tracking-wider">
+                  {promoTarget === 'guild' ? 'Ціна гільдії' : promoType === 'percent' ? 'Розмір знижки (%)' : promoType === 'fixed' ? 'Сума знижки ($)' : 'Опис подарунка'}
+                </label>
+                <div className="relative">
+                  <input 
+                    type={promoType === 'item' ? "text" : "number"}
+                    value={promoTarget === 'guild' ? '' : promoValue}
+                    onChange={(e) => setPromoValue(e.target.value)}
+                    disabled={promoTarget === 'guild'}
+                    placeholder={
+                      promoTarget === 'guild' 
+                        ? 'Собівартість' 
+                        : promoType === 'percent' 
+                        ? '100 (для Free) або 20' 
+                        : promoType === 'fixed' 
+                        ? '5.00' 
+                        : '+500M Ресурсів'
+                    }
+                    className={`w-full bg-[#070b12] border border-white/[0.08] rounded-xl px-4 py-3 text-emerald-400 font-mono font-black text-sm focus:border-red-500 outline-none transition-colors ${promoTarget === 'guild' ? 'opacity-40 cursor-not-allowed' : ''}`} 
+                  />
+                  {promoType === 'percent' && promoTarget !== 'guild' && (
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">%</span>
+                  )}
+                  {promoType === 'fixed' && promoTarget !== 'guild' && (
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">$</span>
+                  )}
+                </div>
+                <span className="text-[10px] text-emerald-500/80 mt-1 block font-medium">
+                  {promoType === 'percent' ? '💡 Введіть 100 для 100% безкоштовного товару' : promoType === 'fixed' ? '💡 Наприклад 5 — чек зменшиться на $5' : '💡 Опис подарунка, який покупець отримає'}
+                </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.limitLabel')}</label>
-                <input type="number" value={maxUses} onChange={(e) => setMaxUses(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.minSumLabel')}</label>
-                <input type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-emerald-400 font-bold" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.expiryLabel')}</label>
-                <input type="datetime-local" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-xs" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-2 uppercase">{t('admin.promo.targetLabel')}</label>
+            {/* РЯДОК 2: ЛІМІТ ВИКОРИСТАНЬ, МІНІМАЛЬНА СУМА, ДАТА */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-white/[0.04]">
               
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-                {['all', 'accounts', 'other', 'specific', 'guild'].map((target) => (
+              {/* ЛІМІТ АКТИВАЦІЙ */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Ліміт використань
+                </label>
+                <input 
+                  type="number" 
+                  value={maxUses} 
+                  onChange={(e) => setMaxUses(e.target.value)} 
+                  placeholder="0 = безлімітно" 
+                  className="w-full bg-[#070b12] border border-white/[0.08] rounded-xl px-4 py-2.5 text-white font-mono text-sm focus:border-red-500 outline-none transition-colors" 
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">0 = необмежено, 10 = для 10 людей</span>
+              </div>
+
+              {/* МІНІМАЛЬНА СУМА ЗАМОВЛЕННЯ */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Мін. сума замовлення ($)
+                </label>
+                <input 
+                  type="number" 
+                  step="0.1"
+                  value={minAmount} 
+                  onChange={(e) => setMinAmount(e.target.value)} 
+                  placeholder="0.00" 
+                  className="w-full bg-[#070b12] border border-white/[0.08] rounded-xl px-4 py-2.5 text-emerald-400 font-mono font-bold text-sm focus:border-red-500 outline-none transition-colors" 
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">0 = діє на будь-яку суму (навіть $0)</span>
+              </div>
+
+              {/* ДАТА ЗАКІНЧЕННЯ */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Діє до (необов'язково)
+                </label>
+                <input 
+                  type="datetime-local" 
+                  value={expiryDate} 
+                  onChange={(e) => setExpiryDate(e.target.value)} 
+                  className="w-full bg-[#070b12] border border-white/[0.08] rounded-xl px-4 py-2.5 text-white text-xs focus:border-red-500 outline-none transition-colors" 
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">Залиште пустим для безстрокового</span>
+              </div>
+            </div>
+
+            {/* РЯДОК 3: ДЛЯ ЯКИХ ТОВАРІВ (ЦІЛЬОВІ КАТЕГОРІЇ) */}
+            <div className="pt-2 border-t border-white/[0.04]">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-rose-500" /> На які товари діє промокод:
+                </label>
+                <span className="text-[10px] text-slate-500">Оберіть конкретну категорію</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[
+                  { id: 'all', label: '🌐 Всі товари' },
+                  { id: 'rss', label: '🌾 Ресурси (RSS)' },
+                  { id: 'gems', label: '💎 Сапфіри (Gems)' },
+                  { id: 'other', label: '📦 Послуги' },
+                  { id: 'accounts', label: '🏰 Акаунти' },
+                  { id: 'specific', label: '🎯 Обрані товари' },
+                  { id: 'guild', label: '🛡️ Гільдія (Собівартість)' }
+                ].map((item) => (
                   <button 
-                    key={target}
+                    key={item.id}
                     type="button"
                     onClick={() => {
-                      setPromoTarget(target);
-                      if (target === 'guild') {
+                      setPromoTarget(item.id);
+                      if (item.id === 'guild') {
                         setPromoType('percent'); 
-                        setPromoValue(''); // Очищаємо значення, воно для гільдії не треба
+                        setPromoValue('');
                       }
                     }}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${promoTarget === target ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                      promoTarget === item.id 
+                        ? 'bg-gradient-to-r from-red-600 to-rose-600 border-red-500 text-white shadow-[0_0_12px_rgba(225,29,72,0.35)]' 
+                        : 'bg-[#070b12] border-white/[0.08] text-slate-300 hover:text-white hover:border-white/[0.2]'
+                    }`}
                   >
-                    {target === 'all' && t('admin.promo.targetAll')}
-                    {target === 'accounts' && t('admin.promo.targetAcc')}
-                    {target === 'other' && t('admin.promo.targetOther')}
-                    {target === 'specific' && t('admin.promo.targetSpecific')}
-                    {target === 'guild' && 'Гільдія (Без %)'}
+                    {item.label}
                   </button>
                 ))}
               </div>
 
-              {/* 🔥 ПОЛЕ ТА КАТЕГОРІЇ ГІЛЬДІЇ 🔥 */}
+              {/* ДОДАТКОВІ НАЛАШТУВАННЯ ДЛЯ ГІЛЬДІЇ */}
               {promoTarget === 'guild' && (
-                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 mb-4 animate-in fade-in zoom-in-95 duration-200">
-                  <label className="block text-xs font-bold text-amber-400 mb-2 uppercase tracking-wide">Тег гільдії (Наприклад: K1O)</label>
+                <div className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-4 mb-4 animate-in fade-in zoom-in-95 duration-200">
+                  <label className="block text-xs font-bold text-amber-400 mb-1.5 uppercase tracking-wide">Тег гільдії (Наприклад: K1O або PRO)</label>
                   <input 
                     type="text" 
                     value={guildTag}
-                    onChange={(e) => setGuildTag(e.target.value)}
+                    onChange={(e) => setGuildTag(e.target.value.toUpperCase())}
                     placeholder="Введіть тег..."
-                    className="w-full bg-slate-900 border border-amber-500/50 rounded-lg px-4 py-3 text-white font-bold outline-none focus:border-amber-400 mb-6 shadow-inner"
+                    className="w-full bg-[#070b12] border border-amber-500/50 rounded-xl px-4 py-2.5 text-white font-bold outline-none focus:border-amber-400 mb-4 text-sm"
                   />
 
-                  <label className="block text-xs font-bold text-amber-400 mb-3 uppercase tracking-wide">Категорії для знижки (До Собівартості)</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <label className="block text-xs font-bold text-amber-400 mb-2 uppercase tracking-wide">Категорії для знижки (До Собівартості)</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                     {[
                       { id: 'rss_all', name: 'Ресурси' },
-                      { id: 'gem_all', name: 'Самоцвіти' },
+                      { id: 'gem_all', name: 'Сапфіри' },
                       { id: 'oth_all', name: 'Послуги' },
                       { id: 'acc_all', name: 'Акаунти' }
                     ].map(cat => (
-                      <label key={cat.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${guildCategories.includes(cat.id) ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500 hover:bg-slate-800'}`}>
+                      <label key={cat.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${guildCategories.includes(cat.id) ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-[#070b12] border-white/[0.06] text-slate-400 hover:border-slate-500'}`}>
                         <input 
                           type="checkbox" 
                           className="hidden" 
@@ -257,22 +389,23 @@ const AdminPromo = ({
                     ))}
                   </div>
 
-                  <p className="text-[11px] text-amber-500/80 mt-3 flex items-center gap-1.5 font-medium">
+                  <p className="text-[11px] text-amber-500/80 mt-2 flex items-center gap-1.5 font-medium">
                     <ShieldAlert className="w-4 h-4 flex-shrink-0" /> 
-                    <span>Знижка до собівартості застосується <b>ТІЛЬКИ</b> до вибраних категорій вище. Кешбек і реферальні нарахування за це замовлення будуть скасовані.</span>
+                    <span>Знижка до собівартості діє тільки для вибраних категорій. Кешбек і реферальні бонуси скасовуються.</span>
                   </p>
                 </div>
               )}
 
+              {/* ДОДАТКОВІ НАЛАШТУВАННЯ ДЛЯ СПЕЦИФІЧНИХ ТОВАРІВ */}
               {promoTarget === 'specific' && (
-                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 max-h-[200px] overflow-y-auto scrollbar-hide space-y-2 animate-in fade-in">
+                <div className="bg-[#070b12] border border-white/[0.08] rounded-2xl p-4 max-h-[220px] overflow-y-auto custom-scrollbar space-y-2 animate-in fade-in">
                   {[
-                    ...adminAccounts.map(a => ({ id: `acc_${a.id}`, name: `[Account] ${a.title}`, price: a.price })),
-                    ...adminOtherItems.map(o => ({ id: `oth_${o.id}`, name: `[Service] ${o.name}`, price: o.price })),
-                    ...adminRssPacks.map(r => ({ id: `rss_${r.id}`, name: `[RSS] ${r.name}`, price: r.price })),
-                    ...adminGemsRates.map(g => ({ id: `gem_${g.id}`, name: `[Gems] ${g.range}`, price: g.rate }))
+                    ...adminAccounts.map(a => ({ id: `acc_${a.id}`, name: `[Акаунт] ${a.title}`, price: a.price })),
+                    ...adminOtherItems.map(o => ({ id: `oth_${o.id}`, name: `[Послуга] ${o.name}`, price: o.price })),
+                    ...adminRssPacks.map(r => ({ id: `rss_${r.id}`, name: `[Ресурси] ${r.name}`, price: r.price })),
+                    ...adminGemsRates.map(g => ({ id: `gem_${g.id}`, name: `[Сапфіри] ${g.range}`, price: g.rate }))
                   ].map(item => (
-                    <label key={item.id} className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border transition-all ${selectedSpecificItems.includes(item.id) ? 'bg-blue-900/30 border-blue-500/50' : 'bg-slate-800/50 border-slate-700 hover:border-slate-500'}`}>
+                    <label key={item.id} className={`flex items-center justify-between p-3 rounded-xl cursor-pointer border transition-all ${selectedSpecificItems.includes(item.id) ? 'bg-red-950/30 border-red-500/50' : 'bg-[#0c1017] border-white/[0.04] hover:border-white/[0.1]'}`}>
                       <div className="flex items-center gap-3">
                         <input 
                           type="checkbox" 
@@ -282,11 +415,11 @@ const AdminPromo = ({
                               prev.includes(item.id) ? prev.filter(i => i !== item.id) : [...prev, item.id]
                             )
                           }}
-                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-600"
+                          className="w-4 h-4 rounded text-red-600 focus:ring-red-500 bg-[#070b12] border-slate-700"
                         />
-                        <span className="text-sm font-medium text-white">{item.name}</span>
+                        <span className="text-xs font-medium text-white">{item.name}</span>
                       </div>
-                      <span className="text-xs font-bold text-emerald-400">${item.price}</span>
+                      <span className="text-xs font-mono font-bold text-emerald-400">${item.price}</span>
                     </label>
                   ))}
                 </div>
@@ -296,14 +429,20 @@ const AdminPromo = ({
           </div>
         </div>
 
-        <div className="xl:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <Ticket className="w-5 h-5 text-emerald-400" /> {t('admin.promo.activeTitle')}
+        {/* ПРАВА КОЛОНКА: СПИСОК АКТИВНИХ ПРОМОКОДІВ */}
+        <div className="xl:col-span-5 bg-[#0c1017] border border-white/[0.08] rounded-3xl p-6 shadow-2xl flex flex-col">
+          <h3 className="text-base font-bold text-white mb-4 pb-3 border-b border-white/[0.06] flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-rose-500" /> Активні промокоди
+            </span>
+            <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/[0.06] text-slate-300">
+              {adminPromoList.length}
+            </span>
           </h3>
           
-          <div className="space-y-3 overflow-y-auto pr-2 max-h-[400px] scrollbar-hide">
+          <div className="space-y-3 overflow-y-auto custom-scrollbar pr-1 max-h-[550px]">
             {adminPromoList.length === 0 ? (
-              <div className="text-center text-slate-500 py-10 text-sm">{t('admin.promo.noActive')}</div>
+              <div className="text-center text-slate-500 py-12 text-sm">Немає створених промокодів</div>
             ) : (
               adminPromoList.map(promo => {
                 let parsedNames = [];
@@ -311,33 +450,51 @@ const AdminPromo = ({
                 try { parsedNames = typeof promo.target_names === 'string' ? JSON.parse(promo.target_names) : (promo.target_names || []); } catch(e) {}
                 try { parsedTargets = typeof promo.target_items === 'string' ? JSON.parse(promo.target_items) : (promo.target_items || []); } catch(e) {}
 
+                const isFree100 = promo.type === 'percent' && parseFloat(promo.value) >= 100;
+
                 return (
-                  <div key={promo.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 group hover:border-blue-500/50 transition-all">
+                  <div key={promo.id} className="bg-[#070b12] border border-white/[0.06] rounded-2xl p-4 flex flex-col gap-3 group hover:border-red-500/30 transition-all">
                     <div className="flex items-center justify-between">
-                      <div className="text-lg font-black text-white tracking-wider">{promo.code}</div>
-                      <button onClick={() => removePromoCode(promo.id)} className="p-2 text-slate-400 hover:text-red-400 transition-colors bg-slate-900 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                      <div className="text-base font-black text-white font-mono tracking-widest bg-white/[0.04] px-3 py-1 rounded-xl border border-white/[0.06]">
+                        {promo.code}
+                      </div>
+                      <button 
+                        onClick={() => removePromoCode(promo.id)} 
+                        title="Видалити промокод"
+                        className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors rounded-xl"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                     
-                    <div className="flex flex-wrap gap-2">
-                      <span className="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold">
-                        {promo.target === 'guild' ? 'Собівартість' : (
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {/* БЕЙДЖ ЗНИЖКИ */}
+                      <span className={`text-xs px-2.5 py-0.5 rounded-lg font-bold border ${
+                        isFree100 
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.25)]' 
+                          : 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30'
+                      }`}>
+                        {promo.target === 'guild' ? 'Собівартість (Base Price)' : (
                           <>
-                            {promo.type === 'percent' && `-${promo.value}%`}
+                            {promo.type === 'percent' && (isFree100 ? '🎉 100% БЕЗКОШТОВНО ($0)' : `-${promo.value}%`)}
                             {promo.type === 'fixed' && `-${promo.value}$`}
-                            {promo.type === 'item' && `${t('admin.promo.giftLabel')} ${promo.value}`}
+                            {promo.type === 'item' && `🎁 Подарунок: ${promo.value}`}
                           </>
                         )}
                       </span>
-                      <span className={`text-xs border px-2 py-0.5 rounded font-bold ${promo.target === 'guild' ? 'bg-amber-900/30 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-400 border-slate-600'}`}>
-                        {promo.target === 'all' && t('admin.promo.targetAll')}
-                        {promo.target === 'accounts' && t('admin.promo.targetAcc')}
-                        {promo.target === 'other' && t('admin.promo.targetOther')}
-                        {promo.target === 'specific' && t('admin.promo.targetSpecific')}
-                        {promo.target === 'guild' && `🛡️ Гільдія: ${parsedNames[0] || 'Для своїх'} (${getGuildCatsStr(parsedTargets)})`}
+
+                      {/* БЕЙДЖ КАТЕГОРІЇ */}
+                      {getTargetBadge(promo, parsedNames, parsedTargets)}
+
+                      {/* БЕЙДЖ ЛІМІТУ */}
+                      <span className="text-xs bg-blue-950/40 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-lg font-mono">
+                        {promo.max_uses > 0 ? `${promo.current_uses} / ${promo.max_uses} вик.` : `Безліміт (${promo.current_uses} вик.)`}
                       </span>
-                      {promo.max_uses > 0 && (
-                        <span className="text-xs bg-blue-900/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
-                          {t('admin.promo.usesLabel')} {promo.current_uses} / {promo.max_uses}
+
+                      {/* МІНІМАЛЬНА СУМА */}
+                      {promo.min_order_amount > 0 && (
+                        <span className="text-xs bg-amber-950/30 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-lg font-mono">
+                          Від ${promo.min_order_amount}
                         </span>
                       )}
                     </div>
@@ -347,6 +504,7 @@ const AdminPromo = ({
             )}
           </div>
         </div>
+
       </div>
     </div>
   );

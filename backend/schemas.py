@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Union
 # ==========================================
 # 🗄️ МОДЕЛІ ДАНИХ ТА КОНФІГИ (Pydantic)
 # ==========================================
@@ -8,6 +8,9 @@ class StoreConfigUpdate(BaseModel):
     is_offline: bool
     offline_categories: List[str]
     offline_message: str
+    offline_message_tg: Optional[str] = None
+    block_orders: Optional[bool] = True
+    usd_to_uah_rate: Optional[float] = 41.5
 
 
 class WorkerPayRequest(BaseModel):
@@ -44,6 +47,7 @@ class UserProfileUpdate(BaseModel):
     new_password: Optional[str] = None
     telegram: Optional[str] = None
     discord: Optional[str] = None
+    avatar: Optional[str] = None
 
 
 class PasswordChangeRequest(BaseModel):
@@ -120,6 +124,7 @@ class OtherItemCreate(BaseModel):
     tag: str
     color: str
     requiredFields: list
+    is_tg_only: Optional[bool] = False
 
 
 class PromoCodeCreate(BaseModel):
@@ -136,12 +141,15 @@ class PromoCodeCreate(BaseModel):
 
 class CashbackSettingsUpdate(BaseModel):
     percent: float
-    excluded_types: str
+    excluded_types: Optional[str] = ""
+    category_percents: Optional[Union[dict, str]] = None
+    tiers: Optional[Union[list, dict, str]] = None
 
 
 class ReferralSettingsUpdate(BaseModel):
     percent: float
-    is_active: bool
+    is_active: bool = True
+    category_percents: Optional[Union[dict, str]] = None
 
 
 class TelegramLinkData(BaseModel):
@@ -159,4 +167,19 @@ class AdminNotificationSend(BaseModel):
 class TicketMessageCreate(BaseModel):
     text: str
     is_secret: bool = False
+
+
+class TelegramWebAppAuthRequest(BaseModel):
+    initData: str
+
+
+class AdminChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+    confirm_password: str
+
+
+class TelegramSyncRequest(BaseModel):
+    mode: Optional[str] = "overwrite"  # "overwrite" or "missing"
+    group: Optional[str] = "all"        # "all", "acc", "res", "gem", "oth"
 

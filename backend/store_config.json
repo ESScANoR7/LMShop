@@ -1,9 +1,13 @@
 {
-    "is_offline": true,
+    "is_offline": false,
     "offline_categories": [
         "resources",
         "gems",
-        "other"
+        "account",
+        "other",
+        "topup"
     ],
-    "offline_message": "🌙 Оператор зараз офлайн. Замовлення цієї категорії будуть виконані пізніше."
+    "offline_message": "☕ Оператор відійшов на короткий час (~30 хв). Замовлення тимчасово на паузі. Скоро повернемось!",
+    "offline_message_tg": "☕ Оператор відійшов на 30 хвилин. Прийом замовлень відновлюється незабаром!",
+    "block_orders": true
 }

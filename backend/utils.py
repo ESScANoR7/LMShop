@@ -22,23 +22,143 @@ if not SECRET_KEY:
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
 FRONTEND_URL = os.getenv("VITE_FRONTEND_URL", "http://localhost:5173")
+COOKIE_SECURE = FRONTEND_URL.startswith("https://")
+COOKIE_SAMESITE = "none" if COOKIE_SECURE else "lax"
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 security_scheme = HTTPBearer()
 
 # ==========================================
-# ⚙️ РОБОТА З КОНФІГОМ МАГАЗИНУ
+# ⚙️ РОБОТА З КОНФІГОМ МАГАЗИНУ (ОФЛАЙН РЕЖИМ)
 # ==========================================
 STORE_CONFIG_FILE = "store_config.json"
 
+DEFAULT_STORE_CONFIG = {
+    "is_offline": False,
+    "offline_categories": ["resources", "gems", "account", "other", "topup"],
+    "offline_message": "🌙 Магазин зараз в офлайн-режимі. Оператор відпочиває. Створення замовлень тимчасово призупинено, але ви можете вільно переглядати каталог товарів!",
+    "offline_message_tg": "🌙 Оператор зараз офлайн (відпочиває). Оформлення замовлень тимчасово призупинено. Спробуйте пізніше або залиште повідомлення у підтримку!",
+    "block_orders": True,
+    "usd_to_uah_rate": 41.5
+}
+
 def get_store_config():
     if not os.path.exists(STORE_CONFIG_FILE):
-        return {"is_offline": False, "offline_categories": [], "offline_message": "🌙 Оператор зараз офлайн."}
-    with open(STORE_CONFIG_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        return DEFAULT_STORE_CONFIG.copy()
+    try:
+        with open(STORE_CONFIG_FILE, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+            merged = DEFAULT_STORE_CONFIG.copy()
+            merged.update(cfg)
+            return merged
+    except Exception:
+        return DEFAULT_STORE_CONFIG.copy()
 
 def save_store_config(config):
     with open(STORE_CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
+
+def check_cart_blocked_by_offline(cart_items):
+    """
+    Перевіряє чи кошик містить товари з категорій, що зараз в офлайні.
+    Повертає (is_blocked: bool, reason: str)
+    """
+    cfg = get_store_config()
+    if not cfg.get("is_offline"):
+        return False, ""
+
+    if not cfg.get("block_orders", True):
+        return False, ""
+
+    offline_cats = cfg.get("offline_categories", [])
+    msg = cfg.get("offline_message") or "🌙 Замовлення тимчасово призупинено. Оператор офлайн."
+
+    # Якщо список категорій порожній, але is_offline=True -> глобальний офлайн для всіх товарів
+    if not offline_cats:
+        return True, msg
+
+    cat_map = {
+        "rss": "resources",
+        "resources": "resources",
+        "gem": "gems",
+        "gems": "gems",
+        "account": "account",
+        "acc": "account",
+        "special": "other",
+        "other": "other",
+        "oth": "other",
+        "topup": "topup",
+        "balance": "topup",
+        "coins": "topup"
+    }
+
+    cat_names_ua = {
+        "resources": "Ресурси",
+        "gems": "Сапфіри (Gems)",
+        "account": "Акаунти",
+        "other": "Інші товари та послуги",
+        "topup": "Поповнення балансу"
+    }
+
+    for item in cart_items:
+        raw_type = ""
+        if isinstance(item, dict):
+            raw_type = item.get("type", "")
+        elif hasattr(item, "type"):
+            raw_type = getattr(item, "type", "")
+
+        mapped_cat = cat_map.get(raw_type, "other")
+
+        if mapped_cat in offline_cats:
+            cat_name = cat_names_ua.get(mapped_cat, mapped_cat)
+            return True, f"{msg}\n(Категорія «{cat_name}» зараз офлайн)"
+
+    return False, ""
+
+def check_telegram_offline(item_group: str = None, is_uk: bool = True):
+    """
+    Перевіряє чи замовлення через Telegram дозволено зараз.
+    item_group: 'acc', 'gem', 'res', 'oth', 'topup', 'coins' тощо.
+    Повертає (is_blocked: bool, message: str)
+    """
+    cfg = get_store_config()
+    if not cfg.get("is_offline"):
+        return False, ""
+
+    if not cfg.get("block_orders", True):
+        return False, ""
+
+    offline_cats = cfg.get("offline_categories", [])
+    msg = cfg.get("offline_message_tg") or cfg.get("offline_message") or (
+        "🌙 Оператор зараз офлайн. Оформлення замовлень тимчасово призупинено. Спробуйте пізніше!"
+        if is_uk else
+        "🌙 The operator is currently offline. Order placement is temporarily paused. Please try again later!"
+    )
+
+    if not offline_cats:
+        return True, msg
+
+    group_map = {
+        "res": "resources",
+        "resources": "resources",
+        "gem": "gems",
+        "gems": "gems",
+        "acc": "account",
+        "account": "account",
+        "oth": "other",
+        "other": "other",
+        "coins": "topup",
+        "topup": "topup"
+    }
+
+    mapped = group_map.get(item_group, "other")
+    if mapped in offline_cats or item_group is None:
+        return True, msg
+
+    return False, ""
 
 
 # ==========================================
@@ -163,6 +283,28 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
     db_user = db.query(models.UserDB).filter(models.UserDB.id == int(user_id)).first()
     if not db_user or db_user.is_banned:
         raise HTTPException(status_code=401, detail="Користувача не знайдено або заблоковано")
+    return db_user
+
+
+def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
+    """Те саме що get_current_user, але повертає None якщо токен відсутній/невалідний (для гостей)."""
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+    except JWTError:
+        return None
+    db_user = db.query(models.UserDB).filter(models.UserDB.id == int(user_id)).first()
+    if not db_user or db_user.is_banned:
+        return None
     return db_user
 
 
@@ -303,3 +445,20 @@ def generate_short_status_message(db_order, status, worker_name="", is_uk=False)
         product_name = escape_html(item.get("product", {}).get("name") or item.get("product", {}).get("title"))
         msg += f" 🔸 {product_name}\n"
     return msg
+
+
+# ==========================================
+# 🚀 ВИСОКОПРОДУКТИВНА СЕСІЯ ДЛЯ TELEGRAM API (KEEP-ALIVE + CONNECTION POOLING)
+# ==========================================
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+tg_session = requests.Session()
+_adapter = HTTPAdapter(
+    pool_connections=30,
+    pool_maxsize=30,
+    max_retries=Retry(total=2, backoff_factor=0.2, status_forcelist=[500, 502, 503, 504])
+)
+tg_session.mount("https://", _adapter)
+tg_session.mount("http://", _adapter)

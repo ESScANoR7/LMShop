@@ -1,9 +1,11 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { apiPost, apiGet } from '../config/apiClient';
+import { initTelegramWebApp, getTMAInitData, hapticNotification } from '../utils/telegramWebApp';
 
 const AuthContext = createContext({
   isLoggedIn: false,
   user: null, 
-  isAuthLoading: false, // Нам більше не треба чекати!
+  isAuthLoading: false,
   login: () => {},
   logout: () => {},
   updateBalance: () => {}
@@ -12,14 +14,11 @@ const AuthContext = createContext({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  // 🔥 СИНХРОННА ІНІЦІАЛІЗАЦІЯ 🔥
-  // Читаємо localStorage одразу, до того як React Router почне перевіряти права
   const [user, setUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem('user_data');
       if (savedUser) {
         const parsedUser = JSON.parse(savedUser);
-        // Нормалізуємо ID (на випадок, якщо бекенд повернув user_id замість id)
         if (parsedUser.user_id && !parsedUser.id) {
           parsedUser.id = parsedUser.user_id;
         }
@@ -32,11 +31,54 @@ export const AuthProvider = ({ children }) => {
     return null;
   });
 
-  // Одразу ставимо true, якщо юзер є
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('user_data'));
-  
-  // Ми прочитали дані миттєво, тому стан завантаження більше не потрібен
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+
+  // 📱 TELEGRAM WEBAPP AUTO-LOGIN
+  useEffect(() => {
+    initTelegramWebApp();
+
+    const tmaInitData = getTMAInitData();
+    if (tmaInitData && !isLoggedIn) {
+      setIsAuthLoading(true);
+      apiPost('/api/telegram/webapp-auth', { initData: tmaInitData })
+        .then(res => {
+          if (res && res.user_id) {
+            login(res);
+            hapticNotification('success');
+          }
+        })
+        .catch(err => {
+          console.warn('Telegram WebApp auto-auth warning:', err);
+        })
+        .finally(() => {
+          setIsAuthLoading(false);
+        });
+    }
+  }, []);
+
+
+  // 🔄 Синхронізація актуальних даних користувача (аватар, баланс) при завантаженні
+  useEffect(() => {
+    if (user?.id) {
+      apiGet(`/api/users/${user.id}`)
+        .then(freshUser => {
+          if (freshUser && (freshUser.id || freshUser.username)) {
+            setUser(prev => {
+              if (!prev) return prev;
+              const updated = { 
+                ...prev, 
+                avatar: freshUser.avatar !== undefined ? freshUser.avatar : prev.avatar,
+                balance: freshUser.balance !== undefined ? freshUser.balance : prev.balance
+              };
+              localStorage.setItem('user_data', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user?.id]);
 
   const login = (userData) => {
     // Гарантуємо, що завжди є поле id
@@ -56,10 +98,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     // Викидаємо запит на бекенд, щоб він "вбив" (очистив) HttpOnly cookies
     try {
-      await fetch('http://localhost:8000/api/logout', {
-        method: 'POST',
-        credentials: 'include' // Обов'язково передаємо куки для їх видалення
-      });
+      await apiPost('/api/logout', {});
     } catch (error) {
       console.error('Помилка при logout на сервері:', error);
     }
@@ -82,8 +121,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (fields) => {
+    if (user) {
+      const updatedUser = { ...user, ...fields };
+      setUser(updatedUser);
+      localStorage.setItem('user_data', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, isAuthLoading, login, logout, updateBalance }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, isAuthLoading, login, logout, updateBalance, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

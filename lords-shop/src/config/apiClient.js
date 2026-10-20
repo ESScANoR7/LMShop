@@ -24,9 +24,6 @@ const refreshAccessToken = async () => {
       method: 'POST',
       credentials: 'include', // 🔥 ОБОВ'ЯЗКОВО для передачі refresh-cookie
       headers: { 'Content-Type': 'application/json' },
-      // Передаємо заглушку, щоб бекенд не сварився на відсутність JSON-тіла,
-      // але реальна валідація пройде по куках
-      body: JSON.stringify({ refresh_token: "cookie_based_refresh" }),
     });
 
     if (!response.ok) {
@@ -56,9 +53,18 @@ export const fetchWithTimeout = async (url, options = {}) => {
 
   // 🔥 ПРИМУСОВО додаємо credentials до всіх запитів, щоб браузер відправляв куки
   options.credentials = 'include';
+  options.headers = {
+    'ngrok-skip-browser-warning': 'true',
+    ...(options.headers || {})
+  };
+
+  // Автоматично резолвимо відносні URL через API_URL, якщо це не повний http(s) URL
+  const resolvedUrl = (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://')))
+    ? url
+    : `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 
   try {
-    let response = await fetch(url, {
+    let response = await fetch(resolvedUrl, {
       ...options,
       signal: controller.signal,
     });

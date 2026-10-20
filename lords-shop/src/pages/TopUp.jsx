@@ -8,7 +8,7 @@ import { apiPost, handleApiError } from '../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../config/api';
 
 const TopUp = () => {
-  const { t } = useTranslation(); 
+  const { t, i18n } = useTranslation(); 
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +54,8 @@ const TopUp = () => {
         product: { name: t('topup.cartItemName', { amount: finalAmount.toFixed(2) }) || `Поповнення балансу на ${finalAmount.toFixed(2)} USDT` },
         price: finalAmount.toFixed(2),
         type: "topup",
-        coins: finalAmount // Скільки монет нарахувати
+        coins: finalAmount, // Скільки монет нарахувати
+        _lang: i18n.language || 'ua'
       }],
       // 🔥 Передаємо універсальну назву для бази даних, як у кошику
       paymentMethod: 'Оплата в чаті',

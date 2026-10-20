@@ -171,11 +171,11 @@ const Calculator = () => {
                   {parseFloat(t5Amount) > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       <div className="bg-amber-900/20 border border-amber-500/30 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-amber-200/70">🌕 Луніт</span><span className="font-bold text-amber-400">{t5LuniteVal.toFixed(0)}K</span></div>
-                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400">🌾 Їжа</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
-                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400">🪨 Камінь</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
-                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400">🪵 Дерево</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
-                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400">💎 Руда</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
-                      <div className="bg-yellow-900/20 border border-yellow-500/30 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-yellow-200/70">💰 Золото</span><span className="font-bold text-yellow-400">{formatRes(parseFloat(t5Amount) * 50 / 1000000)}</span></div>
+                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400 flex items-center gap-1.5"><img src="/items/f60.png" className="w-4 h-4 object-contain inline" alt=""/> Їжа</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
+                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400 flex items-center gap-1.5"><img src="/items/s15.png" className="w-4 h-4 object-contain inline" alt=""/> Камінь</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
+                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400 flex items-center gap-1.5"><img src="/items/w15.png" className="w-4 h-4 object-contain inline" alt=""/> Дерево</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
+                      <div className="bg-slate-800 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-slate-400 flex items-center gap-1.5"><img src="/items/o15.png" className="w-4 h-4 object-contain inline" alt=""/> Руда</span><span className="font-bold text-white">{formatRes(parseFloat(t5Amount) * 100 / 1000000)}</span></div>
+                      <div className="bg-yellow-900/20 border border-yellow-500/30 p-3 rounded-xl flex justify-between items-center"><span className="text-xs text-yellow-200/70 flex items-center gap-1.5"><img src="/items/g6.png" className="w-4 h-4 object-contain inline" alt=""/> Золото</span><span className="font-bold text-yellow-400">{formatRes(parseFloat(t5Amount) * 50 / 1000000)}</span></div>
                     </div>
                   )}
                 </div>
@@ -223,12 +223,19 @@ const Calculator = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   { m: 1, l: '1 хв' }, { m: 5, l: '5 хв' }, { m: 10, l: '10 хв' }, { m: 15, l: '15 хв' },
-                  { m: 30, l: '30 хв' }, { m: 60, l: '60 хв' },
-                  { m: 180, l: '3 год', c: 'blue' }, { m: 480, l: '8 год', c: 'blue' }, { m: 900, l: '15 год', c: 'blue' }, { m: 1440, l: '24 год', c: 'blue' },
-                  { m: 4320, l: '3 дні', c: 'gold' }, { m: 10080, l: '7 днів', c: 'gold' }, { m: 43200, l: '30 днів', c: 'gold' }
+                  { m: 30, l: '30 хв' }, { m: 60, l: '60 хв', icon: 's60m.png' },
+                  { m: 180, l: '3 год', c: 'blue', icon: 's3h.png' }, { m: 480, l: '8 год', c: 'blue', icon: 's8h.png' }, { m: 900, l: '15 год', c: 'blue', icon: 's15h.png' }, { m: 1440, l: '24 год', c: 'blue', icon: 's24h.png' },
+                  { m: 4320, l: '3 дні', c: 'gold', icon: 's3d.png' }, { m: 10080, l: '7 днів', c: 'gold', icon: 's7d.png' }, { m: 43200, l: '30 днів', c: 'gold', icon: 's30d.png' }
                 ].map(item => (
                   <div key={item.m} className={`flex items-center justify-between p-2 pl-3 rounded-xl border ${item.c === 'blue' ? 'bg-blue-900/10 border-blue-500/20' : item.c === 'gold' ? 'bg-amber-900/10 border-amber-500/20' : 'bg-slate-800 border-slate-700'}`}>
-                    <span className={`text-xs font-bold ${item.c === 'blue' ? 'text-blue-400' : item.c === 'gold' ? 'text-amber-400' : 'text-slate-400'}`}>{item.l}</span>
+                    <div className="flex items-center gap-2">
+                      {item.icon ? (
+                        <img src={`/items/${item.icon}`} alt="" className="w-5 h-5 object-contain rounded" />
+                      ) : (
+                        <Clock className={`w-3.5 h-3.5 ${item.c === 'blue' ? 'text-blue-400' : item.c === 'gold' ? 'text-amber-400' : 'text-slate-400'}`} />
+                      )}
+                      <span className={`text-xs font-bold ${item.c === 'blue' ? 'text-blue-400' : item.c === 'gold' ? 'text-amber-400' : 'text-slate-400'}`}>{item.l}</span>
+                    </div>
                     <input 
                       type="number" 
                       value={bag[item.m]} 

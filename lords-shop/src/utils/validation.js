@@ -5,21 +5,18 @@ import { z } from 'zod';
  */
 export const authSchemas = {
   login: z.object({
-    email: z.string().email('Невалідна email адреса'),
+    email: z.string().min(1, 'Введіть логін або email'),
     password: z.string().min(1, 'Пароль обов\'язковий'),
   }),
 
   register: z.object({
     email: z.string().email('Невалідна email адреса'),
     username: z.string()
-      .min(3, 'Username повинен бути мінімум 3 символи')
-      .max(20, 'Username не повинен бути більше 20 символів')
-      .regex(/^[a-zA-Z0-9_-]+$/, 'Username може містити тільки букви, цифри, _ та -'),
+      .min(3, 'Нікнейм повинен бути мінімум 3 символи')
+      .max(20, 'Нікнейм не може бути довшим за 20 символів')
+      .regex(/^[a-zA-Z0-9_-]+$/, 'Нікнейм може містити тільки букви, цифри, _ та -'),
     password: z.string()
-      .min(8, 'Пароль повинен бути мінімум 8 символів')
-      .regex(/[A-Z]/, 'Пароль повинен містити велику букву')
-      .regex(/[a-z]/, 'Пароль повинен містити малу букву')
-      .regex(/[0-9]/, 'Пароль повинен містити цифру'),
+      .min(8, 'Пароль повинен бути мінімум 8 символів'),
     confirmPassword: z.string(),
   }).refine((data) => data.password === data.confirmPassword, {
     message: 'Паролі не збігаються',

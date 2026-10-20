@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
-  Shield, PackageOpen, LayoutGrid, Ticket, ClipboardList, LayoutDashboard, Coins, Users, Bell, Wallet // 🔥 ДОДАНО Wallet
+  Shield, PackageOpen, LayoutGrid, Ticket, ClipboardList, LayoutDashboard, Coins, Users, Bell, Wallet, ShieldCheck
 } from 'lucide-react';
 import { apiGet, handleApiError } from '../config/apiClient';
 import { API_ENDPOINTS, getFullUrl } from '../config/api';
@@ -20,6 +20,7 @@ import AdminAccounts from '../components/admin/AdminAccounts';
 import AdminNotifications from '../components/admin/AdminNotifications'; 
 import AdminAccounting from '../components/admin/AdminAccounting'; // 🔥 ПІДКЛЮЧЕНО БУХГАЛТЕРІЮ 🔥
 import AdminStoreSettings from '../components/admin/AdminStoreSettings';
+import AdminSecurity from '../components/admin/AdminSecurity'; // 🔐 БЕЗПЕКА
 import { Settings } from 'lucide-react'; // Додай Settings до імпорту іконок з lucide-react
 
 const Admin = () => {
@@ -41,15 +42,83 @@ const Admin = () => {
     title: '',
     message: '',
     onConfirm: null,
-    isDangerous: false
+    isDangerous: false,
+    isLoading: false,
   });
 
   const openConfirmDialog = (title, message, onConfirm, isDangerous = false) => {
-    setConfirmDialog({ isOpen: true, title, message, onConfirm, isDangerous });
+    setConfirmDialog({ isOpen: true, title, message, onConfirm, isDangerous, isLoading: false });
   };
 
   const closeConfirmDialog = () => {
-    setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null, isDangerous: false });
+    setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null, isDangerous: false, isLoading: false });
+  };
+
+  // 🔥 ФІКС БАГУ: закриваємо модалку МИТТЄВО при підтвердженні без жодного пролагу!
+  const handleConfirmAction = async () => {
+    if (!confirmDialog.onConfirm) return;
+    const action = confirmDialog.onConfirm;
+    closeConfirmDialog(); // Миттєво ховаємо вікно діалогу
+    try {
+      await action();
+    } catch (error) {
+      console.error('Помилка виконання дії підтвердження:', error);
+    }
+  };
+
+  // 🔔 Звукове сповіщення про нове замовлення через Web Audio API (без сторонніх файлів)
+  const playOrderChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const playTone = (freq, start, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + duration);
+      };
+
+      playTone(587.33, 0, 0.22); // Note D5
+      playTone(880.00, 0.18, 0.38); // Note A5
+    } catch (e) {
+      console.warn("Помилка відтворення звуку замовлення:", e);
+    }
+  };
+
+  // 🚨 Блимання заголовка вкладки при новому замовленні
+  const blinkIntervalRef = useRef(null);
+  const originalTitleRef = useRef(document.title || 'LordTreasury Admin');
+
+  const startTitleBlink = (newCount = 1) => {
+    if (blinkIntervalRef.current) return;
+    originalTitleRef.current = document.title || 'LordTreasury Admin';
+    let isAlert = true;
+
+    blinkIntervalRef.current = setInterval(() => {
+      document.title = isAlert ? `(${newCount}) 📦 НОВЕ ЗАМОВЛЕННЯ!` : originalTitleRef.current;
+      isAlert = !isAlert;
+    }, 1000);
+
+    const stopBlink = () => {
+      if (blinkIntervalRef.current) {
+        clearInterval(blinkIntervalRef.current);
+        blinkIntervalRef.current = null;
+      }
+      document.title = originalTitleRef.current;
+      window.removeEventListener('focus', stopBlink);
+      window.removeEventListener('click', stopBlink);
+    };
+
+    window.addEventListener('focus', stopBlink);
+    window.addEventListener('click', stopBlink);
   };
 
   useEffect(() => {
@@ -60,13 +129,16 @@ const Admin = () => {
     fetchPromocodes(); 
     fetchUsers(); 
 
-    // 🔥 ТИХЕ АВТООНОВЛЕННЯ ЗАМОВЛЕНЬ (POLLING) 🔥
+    // 🔥 ТИХЕ АВТООНОВЛЕННЯ ЗАМОВЛЕНЬ (POLLING) З ОПОВІЩЕННЯМ 🔥
     const fetchOrdersSilent = async () => {
       try {
         const data = await apiGet(getFullUrl(API_ENDPOINTS.ORDERS));
         setAdminOrders(prevOrders => {
           if (prevOrders.length > 0 && data.length > prevOrders.length) {
-            toast.success("Нове замовлення!", { duration: 5000, icon: '📦' });
+            const diff = data.length - prevOrders.length;
+            toast.success(`Нове замовлення (+${diff})!`, { duration: 6000, icon: '📦' });
+            playOrderChime();
+            startTitleBlink(diff);
           }
           return data;
         });
@@ -74,11 +146,17 @@ const Admin = () => {
     };
 
     const intervalId = setInterval(fetchOrdersSilent, 10000); 
-    return () => clearInterval(intervalId); 
+    return () => {
+      clearInterval(intervalId);
+      if (blinkIntervalRef.current) {
+        clearInterval(blinkIntervalRef.current);
+        document.title = originalTitleRef.current;
+      }
+    };
   }, []);
 
   // --- ГЛОБАЛЬНІ ФУНКЦІЇ FETCH ---
-  const fetchUsers = async () => {
+  async function fetchUsers() {
     try {
       const data = await apiGet(getFullUrl(API_ENDPOINTS.ADMIN_USERS));
       setAdminUsers(data);
@@ -89,36 +167,36 @@ const Admin = () => {
         handleApiError(error, t('common.error'));
       }
     }
-  };
+  }
 
-  const fetchOrders = async () => {
+  async function fetchOrders() {
     try {
       const data = await apiGet(getFullUrl(API_ENDPOINTS.ORDERS));
       setAdminOrders(data);
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
-  };
+  }
 
-  const fetchAccounts = async () => {
+  async function fetchAccounts() {
     try {
       const data = await apiGet(getFullUrl(API_ENDPOINTS.ACCOUNTS));
       setAdminAccounts(data);
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
-  };
+  }
 
-  const fetchPromocodes = async () => {
+  async function fetchPromocodes() {
     try {
       const data = await apiGet(getFullUrl(API_ENDPOINTS.PROMOCODES));
       setAdminPromoList(data);
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
-  };
+  }
 
-  const fetchResourcesAndGems = async () => {
+  async function fetchResourcesAndGems() {
     try {
       const [resourcesData, gemsData] = await Promise.all([
         apiGet(getFullUrl(API_ENDPOINTS.RESOURCES)),
@@ -129,81 +207,151 @@ const Admin = () => {
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
-  };
+  }
 
   const fetchOtherItems = async () => {
     try {
-      const data = await apiGet(getFullUrl(API_ENDPOINTS.OTHER_ITEMS));
+      const data = await apiGet(getFullUrl(API_ENDPOINTS.OTHER_ITEMS + '?all=true'));
       setAdminOtherItems(data);
     } catch (error) {
       handleApiError(error, t('common.error'));
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row pb-20 pt-8 gap-6 max-w-[1400px] mx-auto px-4">
-      
-      {/* ЛІВА ПАНЕЛЬ: МЕНЮ */}
-      <aside className="w-full md:w-64 flex-shrink-0">
-        <div className="bg-slate-900 border border-blue-500/30 rounded-3xl p-4 sticky top-24 shadow-2xl shadow-blue-900/10 z-20">
-          <div className="px-4 pb-6 mb-4 border-b border-slate-800">
-            <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 uppercase tracking-widest">
-              {t('admin.title')}
-            </h2>
-          </div>
+  const newOrdersCount = adminOrders.filter(o => o.status === 'new').length;
 
-          <nav className="space-y-2">
-            <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <LayoutDashboard className="w-5 h-5" /> {t('admin.sidebar.dashboard')}
-            </button>
-            <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'orders' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <div className="flex items-center gap-3"><ClipboardList className="w-5 h-5" /> {t('admin.sidebar.orders')}</div>
-              {adminOrders.filter(o => o.status === 'new').length > 0 && (
-                <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{adminOrders.filter(o => o.status === 'new').length}</span>
+  const navSections = [
+    {
+      title: 'Огляд & Замовлення',
+      items: [
+        { id: 'dashboard', label: t('admin.sidebar.dashboard', 'Дашборд'), icon: LayoutDashboard },
+        { id: 'orders', label: t('admin.sidebar.orders', 'Замовлення'), icon: ClipboardList, badge: newOrdersCount, isAlertBadge: true },
+      ]
+    },
+    {
+      title: 'Каталог товарів',
+      items: [
+        { id: 'accounts', label: t('admin.sidebar.accounts', 'Акаунти'), icon: Shield, badge: adminAccounts.length ? `${adminAccounts.length}` : null },
+        { id: 'resources', label: t('admin.sidebar.resources', 'Ресурси (RSS)'), icon: PackageOpen },
+        { id: 'other', label: t('admin.sidebar.other', 'Сапфіри & Буст'), icon: LayoutGrid },
+        { id: 'promo', label: t('admin.sidebar.promo', 'Промокоди'), icon: Ticket },
+      ]
+    },
+    {
+      title: 'Фінанси & Клієнти',
+      items: [
+        { id: 'users', label: t('admin.sidebar.users', 'Користувачі'), icon: Users, badge: adminUsers.length ? `${adminUsers.length}` : null },
+        { id: 'accounting', label: 'Зарплати воркерів', icon: Wallet },
+        { id: 'cashback', label: t('admin.sidebar.cashback', 'Кешбек'), icon: Coins },
+      ]
+    },
+    {
+      title: 'Система & Вітрина',
+      items: [
+        { id: 'store_settings', label: 'Офлайн & TG Вітрина', icon: Settings },
+        { id: 'security', label: 'Безпека & Логи', icon: ShieldCheck },
+        { id: 'notifications', label: 'Сповіщення', icon: Bell },
+      ]
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#070a0f] flex flex-col md:flex-row pb-20 pt-6 gap-6 max-w-[1440px] mx-auto px-4">
+      
+      {/* 📱 МОБІЛЬНЕ МЕНЮ ВКЛАДОК (ГОРИЗОНТАЛЬНИЙ СКРОЛ БЕЗ ВАЖКИХ БЛОКІВ) */}
+      <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+        {navSections.flatMap(s => s.items).map(item => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 border ${
+                isActive 
+                  ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500/50 shadow-[0_0_15px_rgba(225,29,72,0.4)]'
+                  : 'bg-slate-900/90 text-slate-400 hover:text-white border-slate-800'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{item.label}</span>
+              {item.badge && item.badge !== '0' && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                  item.isAlertBadge ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-800 text-slate-300'
+                }`}>
+                  {item.badge}
+                </span>
               )}
             </button>
-            <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'users' ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <Users className="w-5 h-5" /> {t('admin.sidebar.users')}
-            </button>
+          );
+        })}
+      </div>
 
-            {/* 🔥 НОВА КНОПКА: ЗАРПЛАТИ 🔥 */}
-            <button onClick={() => setActiveTab('accounting')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'accounting' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <Wallet className="w-5 h-5" /> Зарплати
-            </button>
+      {/* 🖥️ ДЕСКТОПНА ПАНЕЛЬ: ЧОРНО-ЧЕРВОНЕ МЕНЮ */}
+      <aside className="hidden md:block w-64 lg:w-72 flex-shrink-0">
+        <div className="bg-[#0c1017] border border-slate-800/90 rounded-3xl p-4 sticky top-24 shadow-2xl shadow-black/80 backdrop-blur-xl">
+          
+          {/* ШАПКА АДМІНКИ З ЧЕРВОНИМ АКЦЕНТОМ */}
+          <div className="px-4 py-4 mb-4 border-b border-slate-800/80 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" />
+                <span className="text-[10px] font-black tracking-widest uppercase text-red-400">COMMAND CENTER</span>
+              </div>
+              <h2 className="text-xl font-black text-white tracking-wide">
+                Lords <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-rose-400">Admin</span>
+              </h2>
+            </div>
+          </div>
 
-            <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'notifications' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <Bell className="w-5 h-5" /> Сповіщення
-            </button>
-
-            <button onClick={() => setActiveTab('cashback')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'cashback' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <Coins className="w-5 h-5" /> {t('admin.sidebar.cashback')}
-            </button>
-            <button onClick={() => setActiveTab('accounts')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'accounts' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <Shield className="w-5 h-5" /> {t('admin.sidebar.accounts')}
-            </button>
-            <button onClick={() => setActiveTab('resources')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'resources' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <PackageOpen className="w-5 h-5" /> {t('admin.sidebar.resources')}
-            </button>
-            <button onClick={() => setActiveTab('other')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'other' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <LayoutGrid className="w-5 h-5" /> {t('admin.sidebar.other')}
-            </button>
-            <button onClick={() => setActiveTab('promo')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'promo' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-              <Ticket className="w-5 h-5" /> {t('admin.sidebar.promo')}
-            </button>
-            <button onClick={() => setActiveTab('store_settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'store_settings' ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-  <Settings className="w-5 h-5" /> Налаштування (Офлайн)
-</button>
+          <nav className="space-y-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-1 admin-scrollbar">
+            {navSections.map((section, sIdx) => (
+              <div key={sIdx} className="space-y-1">
+                <div className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  {section.title}
+                </div>
+                {section.items.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold border ${
+                        isActive
+                          ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white border-red-500/50 shadow-[0_0_18px_rgba(225,29,72,0.35)] translate-x-1'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-850 hover:bg-slate-800/60 hover:border-slate-700/60 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-red-400'}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge && item.badge !== '0' && (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          item.isAlertBadge && Number(item.badge) > 0
+                            ? 'bg-red-500 text-white animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+                            : 'bg-slate-800 text-slate-300 border border-slate-700'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </div>
       </aside>
 
       {/* ПРАВА ПАНЕЛЬ */}
-      <main className="flex-1">
+      <main className="flex-1 min-w-0">
         {activeTab === 'dashboard' && (
           <AdminDashboard adminOrders={adminOrders} adminUsers={adminUsers} adminPromoList={adminPromoList} setActiveTab={setActiveTab} />
         )}
         {activeTab === 'users' && (
-          <AdminUsers adminUsers={adminUsers} fetchUsers={fetchUsers} openConfirmDialog={openConfirmDialog} />
+          <AdminUsers adminUsers={adminUsers} fetchUsers={fetchUsers} openConfirmDialog={openConfirmDialog} adminOrders={adminOrders} />
         )}
         
         {/* 🔥 ВИКЛИК НОВОЇ ВКЛАДКИ ЗАРПЛАТ 🔥 */}
@@ -239,6 +387,9 @@ const Admin = () => {
         {activeTab === 'store_settings' && (
   <AdminStoreSettings />
 )}
+        {activeTab === 'security' && (
+          <AdminSecurity />
+        )}
       </main>
 
       {/* Confirm Dialog */}
@@ -246,9 +397,10 @@ const Admin = () => {
         <ConfirmDialog
           title={confirmDialog.title}
           message={confirmDialog.message}
-          onConfirm={confirmDialog.onConfirm}
+          onConfirm={handleConfirmAction}
           onCancel={closeConfirmDialog}
           isDangerous={confirmDialog.isDangerous}
+          isLoading={confirmDialog.isLoading}
         />
       )}
     </div>

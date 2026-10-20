@@ -27,11 +27,11 @@ const AuthForm = ({ isLoginView, onSuccess, isLoading }) => {
           ? getFullUrl(API_ENDPOINTS.LOGIN)
           : getFullUrl(API_ENDPOINTS.REGISTER);
 
-        const response = await apiPost(endpoint, {
-          [isLoginView ? 'email' : 'username']: data.email || data.username,
-          [isLoginView ? 'password' : 'email']: data.password || data.email,
-          ...(isLoginView ? {} : { password: data.password }),
-        });
+        const payload = isLoginView
+          ? { username: data.username || data.email, password: data.password }
+          : { username: data.username, email: data.email, password: data.password };
+
+        const response = await apiPost(endpoint, payload);
 
         if (isLoginView) {
           showSuccessToast(`З поверненням, ${response.username}!`);

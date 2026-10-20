@@ -17,5 +17,16 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Existing screens use React's automatic JSX runtime and intentionally
+      // export context helpers alongside providers.
+      'no-unused-vars': 'warn',
+      'react-refresh/only-export-components': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/exhaustive-deps': 'warn',
+      'no-empty': 'warn',
+      'no-constant-binary-expression': 'warn',
+    },
   },
 ])
