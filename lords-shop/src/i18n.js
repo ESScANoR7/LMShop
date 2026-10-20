@@ -953,7 +953,14 @@ const resources = {
         "duelTitle": "Вердикт Дуелі: Хто виграє?",
         "expertAdvice": "Порада експерта:",
         "duelRoundsWon": "перемог у раундах",
-        "duelWinner": "Переможець за сумою характеристик!"
+        "duelWinner": "Переможець за сумою характеристик!",
+        "duelCorner1": "Акаунт #1 (Синій кут)",
+        "duelCorner2": "Акаунт #2 (Червоний кут)",
+        "duelCriterion": "Критерій",
+        "duelBetter": "Краще 🟢",
+        "duelTie": "Нічия",
+        "duelNotEnough": "Недостатньо акаунтів для Дуелі",
+        "duelNotEnoughDesc": "Додайте хоча б 2 акаунти в обране або порівняння, щоб запустити батл."
       },
       "easterEgg": {
         "title": "Ти потрапив у гендзюцу",
@@ -1916,7 +1923,14 @@ const resources = {
         "duelTitle": "Duel Verdict: Who Wins?",
         "expertAdvice": "Expert advice:",
         "duelRoundsWon": "round wins",
-        "duelWinner": "Winner by overall stats!"
+        "duelWinner": "Winner by overall stats!",
+        "duelCorner1": "Account #1 (Blue corner)",
+        "duelCorner2": "Account #2 (Red corner)",
+        "duelCriterion": "Criterion",
+        "duelBetter": "Win 🟢",
+        "duelTie": "Tie",
+        "duelNotEnough": "Not enough accounts for Duel",
+        "duelNotEnoughDesc": "Add at least 2 accounts to favorites or comparison to launch a battle."
       },
       "easterEgg": {
         "title": "You have fallen into genjutsu",
@@ -2874,7 +2888,14 @@ const resources = {
         "duelTitle": "Duell-Urteil: Wer gewinnt?",
         "expertAdvice": "Expertenrat:",
         "duelRoundsWon": "Rundensiege",
-        "duelWinner": "Sieger nach Gesamtattributen!"
+        "duelWinner": "Sieger nach Gesamtattributen!",
+        "duelCorner1": "Account #1 (Blaue Ecke)",
+        "duelCorner2": "Account #2 (Rote Ecke)",
+        "duelCriterion": "Kriterium",
+        "duelBetter": "Besser 🟢",
+        "duelTie": "Gleichstand",
+        "duelNotEnough": "Nicht genügend Accounts für ein Duell",
+        "duelNotEnoughDesc": "Fügen Sie mindestens 2 Accounts zu den Favoriten oder zum Vergleich hinzu, um einen Kampf zu starten."
       },
       "easterEgg": {
         "title": "Du bist in ein Genjutsu geraten",
