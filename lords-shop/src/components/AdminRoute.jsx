@@ -96,7 +96,7 @@ const AdminRoute = ({ children }) => {
               value={adminPin}
               onChange={(e) => setAdminPin(e.target.value)}
               placeholder="****"
-              maxLength={4}
+              maxLength={32}
               className="w-full bg-slate-950 border-2 border-slate-700 rounded-xl px-4 py-4 text-center text-3xl font-black text-white tracking-[1em] focus:border-rose-500 outline-none transition-colors placeholder:tracking-normal placeholder:text-slate-700"
               autoFocus
             />
