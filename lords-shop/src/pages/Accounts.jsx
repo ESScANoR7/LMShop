@@ -132,7 +132,7 @@ const Accounts = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
           <input
             type="text"
-            placeholder="Пошук за назвою або ID (напр. ID 5)"
+            placeholder={t('accounts.searchPlaceholder', 'Пошук за назвою або ID (напр. ID 5)')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-2xl pl-12 pr-4 py-4 focus:outline-none transition-colors shadow-inner font-medium"
@@ -155,7 +155,7 @@ const Accounts = () => {
           }
         >
           <SlidersHorizontal className="w-5 h-5" />
-          Фільтри
+          {t('accounts.filters', 'Фільтри')}
         </button>
       </div>
 
@@ -167,7 +167,7 @@ const Accounts = () => {
         >
           <div>
             <label className="block text-[11px] font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              Мінімальна ціна ($)
+              {t('accounts.minPrice', 'Мінімальна ціна ($)')}
             </label>
             <input
               type="number" placeholder="0" value={minPrice}
@@ -180,7 +180,7 @@ const Accounts = () => {
           </div>
           <div>
             <label className="block text-[11px] font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              Максимальна ціна ($)
+              {t('accounts.maxPrice', 'Максимальна ціна ($)')}
             </label>
             <input
               type="number" placeholder="9999" value={maxPrice}
@@ -193,16 +193,16 @@ const Accounts = () => {
           </div>
           <div>
             <label className="block text-[11px] font-bold mb-2 uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-              <ArrowDownUp className="w-3 h-3" /> Сортування
+              <ArrowDownUp className="w-3 h-3" /> {t('accounts.sorting', 'Сортування')}
             </label>
             <select
               value={sortBy} onChange={(e) => setSortBy(e.target.value)}
               className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none cursor-pointer appearance-none transition-colors shadow-inner font-bold"
               style={{ background: 'var(--bg-base)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
             >
-              <option value="newest">Спочатку нові</option>
-              <option value="price_asc">Від дешевих до дорогих</option>
-              <option value="price_desc">Від дорогих до дешевих</option>
+              <option value="newest">{t('accounts.sortNewest', 'Спочатку нові')}</option>
+              <option value="price_asc">{t('accounts.sortPriceAsc', 'Від дешевих до дорогих')}</option>
+              <option value="price_desc">{t('accounts.sortPriceDesc', 'Від дорогих до дешевих')}</option>
             </select>
           </div>
           {(minPrice || maxPrice || sortBy !== 'newest') && (
@@ -212,7 +212,7 @@ const Accounts = () => {
                 className="text-xs font-bold uppercase tracking-wider transition-colors"
                 style={{ color: 'var(--text-accent)' }}
               >
-                Скинути фільтри
+                {t('accounts.resetFilters', 'Скинути фільтри')}
               </button>
             </div>
           )}

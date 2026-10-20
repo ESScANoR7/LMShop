@@ -163,7 +163,7 @@ const OrderModal = ({ isOpen, onClose, product, type }) => {
                 </label>
                 <input 
                   required
-                  placeholder="Наприклад: 3x Щит 24г, 2x Телепорт"
+                  placeholder={t('orderModal.gemsItemPlaceholder', 'Наприклад: 3x Щит 24г, 2x Телепорт')}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   onChange={(e) => setFormData({...formData, itemToBuy: e.target.value})}
                   value={formData.itemToBuy}

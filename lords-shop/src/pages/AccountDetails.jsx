@@ -305,7 +305,7 @@ const AccountDetails = () => {
             ) : (
               <div className="flex flex-col items-center gap-2 text-slate-600">
                 <ImageIcon className="w-16 h-16" />
-                <span className="text-sm font-medium">Фото відсутні</span>
+                <span className="text-sm font-medium">{t('accounts.noPhotos', 'Фото відсутні')}</span>
               </div>
             )}
           </div>
@@ -403,7 +403,7 @@ const AccountDetails = () => {
               {t('accountDetails.description')}
             </h3>
             <div className="text-slate-300 text-sm leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800/80 whitespace-pre-line max-h-48 overflow-y-auto scrollbar-thin">
-              {account.shortDesc || 'Опис відсутній.'}
+              {account.shortDesc || t('accounts.noDesc', 'Опис відсутній.')}
             </div>
           </div>
 

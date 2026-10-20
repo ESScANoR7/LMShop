@@ -379,7 +379,7 @@ const Header = () => {
                 }}
               >
                 <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--text-secondary)' }}>
-                  <span>Валюта</span>
+                  <span>{t('nav.currency', 'Валюта')}</span>
                   <Coins className="w-3 h-3 text-amber-400 opacity-80" />
                 </div>
                 {[
@@ -606,7 +606,7 @@ const Header = () => {
                }}
              >
                <User className="w-5 h-5" style={{ color: 'var(--accent)' }} />
-               <span>Увійти в кабінет</span>
+               <span>{t('nav.login', 'Увійти в кабінет')}</span>
              </Link>
           )}
 
@@ -623,7 +623,7 @@ const Header = () => {
           >
             <div className="flex items-center gap-3">
               <Scale className="w-5 h-5" style={{ color: 'var(--gold)' }} />
-              <span>Порівняння акаунтів</span>
+              <span>{t('nav.compare', 'Порівняння акаунтів')}</span>
             </div>
             {compareList?.length > 0 && (
               <span
@@ -716,7 +716,7 @@ const Header = () => {
           >
             <span className="font-bold flex items-center gap-2">
               <Coins className="w-4 h-4" style={{ color: 'var(--gold)' }} />
-              <span>Валюта</span>
+              <span>{t('nav.currency', 'Валюта')}</span>
             </span>
             <div className="flex gap-1.5">
               {[

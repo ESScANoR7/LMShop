@@ -4,7 +4,10 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   ua: {
     translation: {
-      "nav": {
+            "nav": {
+        "login": "Увійти в кабінет",
+        "compare": "Порівняння акаунтів",
+        "currency": "Валюта",
         "home": "ГОЛОВНА",
         "resources": "РЕСУРСИ",
         "sapphires": "САПФІРИ",
@@ -47,7 +50,9 @@ const resources = {
           "desc": "Класика"
         }
       },
-      "orderModal": {
+            "orderModal": {
+        "gemsItem": "Що саме купити (Товари)",
+        "gemsItemPlaceholder": "Наприклад: 3x Щит 24г, 2x Телепорт",
         "title": "Оформлення: {{name}}",
         "nickname": "Нікнейм (нік)",
         "guild": "Гільдія",
@@ -98,6 +103,18 @@ const resources = {
         "cartItemName": "💳 Поповнення балансу: {{amount}} USDT",
         "successMessage": "Заявку створено! Оплатіть ${{amount}} вибраним способом."
       },
+            "resetPassword": {
+        "title": "Створення пароля",
+        "desc": "Придумайте новий надійний пароль для вашого акаунта.",
+        "newPassword": "Новий пароль",
+        "confirmPassword": "Підтвердіть пароль",
+        "placeholderMin": "Мінімум 8 символів",
+        "placeholderRepeat": "Повторіть пароль",
+        "submitBtn": "Зберегти пароль",
+        "passTooShort": "Пароль занадто короткий",
+        "invalidToken": "Недійсне посилання для відновлення",
+        "success": "Пароль успішно змінено!"
+      },
       "resources_page": {
         "title": "Ресурси та Сапфіри (Gems)",
         "subtitle": "Виберіть необхідний пакет ресурсів або сапфірів (gems) для швидкого розвитку вашого королівства.",
@@ -136,7 +153,7 @@ const resources = {
         "selectItemsFirst": "Оберіть товари для додавання",
         "loadingBuilder": "Завантаження калькулятора...",
         "errorNotEnoughGems": "Недостатньо Сапфірів (Gems)! Збільшіть кількість пакетів зліва.",
-        "errorFillData": "Заповніть ваші ігрові дані (Нікнейм та Точну міць)!",
+        "errorFillData": "Будь ласка, заповніть всі обов'язкові дані: Нікнейм, Гільдія та Могутність!",
         "successAdded": "Замовлення додано до кошика!",
         "giftName": "Подарунки за {{amount}} Gems"
       },
@@ -181,7 +198,18 @@ const resources = {
           "emptyDesc": "Нові пропозиції перевіряються гарантом та додаються щоденно."
         }
       },
-      "accounts": {
+            "accounts": {
+        "searchPlaceholder": "Пошук за назвою або ID (напр. ID 5)",
+        "filters": "Фільтри",
+        "minPrice": "Мінімальна ціна ($)",
+        "maxPrice": "Максимальна ціна ($)",
+        "sorting": "Сортування",
+        "sortNewest": "Спочатку нові",
+        "sortPriceAsc": "Від дешевих до дорогих",
+        "sortPriceDesc": "Від дорогих до дешевих",
+        "resetFilters": "Скинути фільтри",
+        "noPhotos": "Фото відсутні",
+        "noDesc": "Опис відсутній.",
         "title": "Галерея Акаунтів",
         "subtitle": "Топові акаунти з перевіреною статистикою",
         "filter": {
@@ -320,7 +348,16 @@ const resources = {
           "gold": "Золото"
         }
       },
-      "cart": {
+            "cart": {
+        "promoOnlyRss": "Цей промокод діє тільки на Паки Ресурсів (RSS). Додайте ресурси у кошик!",
+        "promoOnlyGems": "Цей промокод діє тільки на Сапфіри (Gems). Додайте сапфіри у кошик!",
+        "promoOnlyAccounts": "Цей промокод діє тільки на Акаунти.",
+        "promoOnlyOther": "Цей промокод діє тільки на Послуги.",
+        "storeOffline": "🌙 Створення замовлень тимчасово призупинено в офлайн-режимі!",
+        "offlineBtn": "🌙 Замовлення тимчасово призупинено (Офлайн)",
+        "giftPromoItem": "🎁 ПОДАРУНОК (Промокод: {{code}})",
+        "discountPromoItem": "🏷️ ЗНИЖКА (Промокод: {{code}})",
+        "priceForGuild": "Ціна для Своїх",
         "title": "Оформлення замовлення",
         "empty": "Кошик порожній",
         "emptyDesc": "Але ви все ще можете перевірити свій промокод справа 👉",
@@ -386,7 +423,22 @@ const resources = {
         "priceForGuild": "Ціна для Своїх",
         "item": "Товар"
       },
-      "profile": {
+            "profile": {
+        "forgot": {
+          "title": "Відновлення",
+          "desc": "Введіть email, який ви вказували при реєстрації.",
+          "emailPlaceholder": "Ваш Email",
+          "sendBtn": "Відправити лист",
+          "rememberPass": "Згадали пароль?",
+          "back": "Повернутись"
+        },
+        "telegram": {
+          "connected": "Акаунт підключено",
+          "unlink": "Відв'язати"
+        },
+        "avatar": {
+          "formatNotice": "PNG, JPG або WEBP (до 10 МБ)"
+        },
         "title": "Мій Кабінет",
         "welcome": "Вітаємо",
         "balance": "Баланс монет",
@@ -430,7 +482,8 @@ const resources = {
           "method": "МЕТОД:",
           "paid": "Сплачено"
         },
-        "orders": {
+                "orders": {
+          "ticketClosed": "Тікет закрито",
           "title": "Моя історія покупок",
           "empty": "Тут поки порожньо",
           "emptyDesc": "Ви ще нічого не замовляли. Час це виправити!",
@@ -906,7 +959,10 @@ const resources = {
 
   en: {
     translation: {
-      "nav": {
+            "nav": {
+        "login": "Login / Account",
+        "compare": "Compare Accounts",
+        "currency": "Currency",
         "home": "HOME",
         "resources": "RESOURCES",
         "sapphires": "SAPPHIRES",
@@ -949,7 +1005,9 @@ const resources = {
           "desc": "Classic"
         }
       },
-      "orderModal": {
+            "orderModal": {
+        "gemsItem": "Items to buy",
+        "gemsItemPlaceholder": "E.g.: 3x Shield 24h, 2x Teleport",
         "title": "Checkout: {{name}}",
         "nickname": "Nickname",
         "guild": "Guild",
@@ -1000,6 +1058,18 @@ const resources = {
         "cartItemName": "💳 Balance Top-Up: {{amount}} USDT",
         "successMessage": "Request created! Please pay ${{amount}} using the selected method."
       },
+            "resetPassword": {
+        "title": "Create Password",
+        "desc": "Create a strong new password for your account.",
+        "newPassword": "New Password",
+        "confirmPassword": "Confirm Password",
+        "placeholderMin": "Minimum 8 characters",
+        "placeholderRepeat": "Repeat password",
+        "submitBtn": "Save Password",
+        "passTooShort": "Password is too short",
+        "invalidToken": "Invalid password reset link",
+        "success": "Password changed successfully!"
+      },
       "resources_page": {
         "title": "Resources & Gems",
         "subtitle": "Choose the required resource or gem pack for the rapid development of your kingdom.",
@@ -1038,7 +1108,7 @@ const resources = {
         "selectItemsFirst": "Select items to add",
         "loadingBuilder": "Loading configurator...",
         "errorNotEnoughGems": "Not enough Gems! Increase the pack quantity on the left.",
-        "errorFillData": "Please fill in your game data (Nickname and Exact Might)!",
+        "errorFillData": "Please fill in all required data: Nickname, Guild, and Might!",
         "successAdded": "Order added to cart!",
         "giftName": "Gifts for {{amount}} Gems"
       },
@@ -1083,7 +1153,18 @@ const resources = {
           "emptyDesc": "New offers are verified by our guarantor and added daily."
         }
       },
-      "accounts": {
+            "accounts": {
+        "searchPlaceholder": "Search by title or ID (e.g. ID 5)",
+        "filters": "Filters",
+        "minPrice": "Min Price ($)",
+        "maxPrice": "Max Price ($)",
+        "sorting": "Sorting",
+        "sortNewest": "Newest first",
+        "sortPriceAsc": "Price: Low to High",
+        "sortPriceDesc": "Price: High to Low",
+        "resetFilters": "Reset filters",
+        "noPhotos": "No photos available",
+        "noDesc": "No description provided.",
         "title": "Account Gallery",
         "subtitle": "Top accounts with verified stats",
         "filter": {
@@ -1222,7 +1303,16 @@ const resources = {
           "gold": "Gold"
         }
       },
-      "cart": {
+            "cart": {
+        "promoOnlyRss": "This promo code is only valid for Resource Packs (RSS). Add resources to cart!",
+        "promoOnlyGems": "This promo code is only valid for Gems. Add gems to cart!",
+        "promoOnlyAccounts": "This promo code is only valid for Accounts.",
+        "promoOnlyOther": "This promo code is only valid for Other Items.",
+        "storeOffline": "🌙 Orders are temporarily paused in offline mode!",
+        "offlineBtn": "🌙 Orders temporarily paused (Offline)",
+        "giftPromoItem": "🎁 GIFT (Promo: {{code}})",
+        "discountPromoItem": "🏷️ DISCOUNT (Promo: {{code}})",
+        "priceForGuild": "Guild Price",
         "title": "Checkout",
         "empty": "Your cart is empty",
         "emptyDesc": "But you can still check your promo code on the right 👉",
@@ -1288,7 +1378,27 @@ const resources = {
         "priceForGuild": "Guild Member Price",
         "item": "Item"
       },
-      "profile": {
+            "profile": {
+        "forgot": {
+          "title": "Password Recovery",
+          "desc": "Enter the email associated with your account.",
+          "emailPlaceholder": "Your Email",
+          "sendBtn": "Send Reset Link",
+          "rememberPass": "Remembered password?",
+          "back": "Back"
+        },
+        "telegram": {
+          "connected": "Account Connected",
+          "unlink": "Unlink"
+        },
+        "avatar": {
+          "formatNotice": "PNG, JPG or WEBP (up to 10 MB)"
+        },
+        "receipt": {
+          "title": "Electronic Receipt",
+          "method": "METHOD:",
+          "paid": "Paid"
+        },
         "title": "My Account",
         "welcome": "Welcome",
         "balance": "Coin Balance",
@@ -1327,7 +1437,8 @@ const resources = {
           "logoutOther": "Logout from other devices",
           "current": "Current"
         },
-        "orders": {
+                "orders": {
+          "ticketClosed": "Ticket closed",
           "title": "My Order History",
           "empty": "It's empty here",
           "emptyDesc": "You haven't ordered anything yet.",
@@ -1803,7 +1914,10 @@ const resources = {
 
   de: {
     translation: {
-      "nav": {
+            "nav": {
+        "login": "Anmelden",
+        "compare": "Accounts vergleichen",
+        "currency": "Währung",
         "home": "STARTSEITE",
         "resources": "RESSOURCEN",
         "sapphires": "SAPHIRE",
@@ -1846,7 +1960,9 @@ const resources = {
           "desc": "Klassisch"
         }
       },
-      "orderModal": {
+            "orderModal": {
+        "gemsItem": "Zu kaufende Artikel",
+        "gemsItemPlaceholder": "Z.B.: 3x Schild 24h, 2x Teleport",
         "title": "Kasse: {{name}}",
         "nickname": "Benutzername",
         "guild": "Gilde",
@@ -1897,6 +2013,18 @@ const resources = {
         "cartItemName": "💳 Guthaben aufladen: {{amount}} USDT",
         "successMessage": "Anfrage erstellt! Bitte zahlen Sie ${{amount}} mit der ausgewählten Methode."
       },
+            "resetPassword": {
+        "title": "Passwort erstellen",
+        "desc": "Erstelle ein starkes neues Passwort für dein Konto.",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Passwort bestätigen",
+        "placeholderMin": "Mindestens 8 Zeichen",
+        "placeholderRepeat": "Passwort wiederholen",
+        "submitBtn": "Passwort speichern",
+        "passTooShort": "Passwort ist zu kurz",
+        "invalidToken": "Ungültiger Link zum Zurücksetzen",
+        "success": "Passwort erfolgreich geändert!"
+      },
       "resources_page": {
         "title": "Ressourcen & Edelsteine",
         "subtitle": "Wähle das benötigte Ressourcen- oder Edelsteinpaket für die schnelle Entwicklung deines Königreichs.",
@@ -1921,8 +2049,8 @@ const resources = {
         "totalToPay": "Zu zahlen:",
         "gameDataTitle": "Deine Spieldaten",
         "nicknamePlaceholder": "Spieler-Nickname (Eng)",
-        "guildPlaceholder": "Gilde (optional)",
-        "guildWarning": "Die Gilde muss offen sein! Sonst können wir die Bestellung nicht liefern.",
+        "guildPlaceholder": "Gilde (Erforderlich)",
+        "guildWarning": "Gilde ist erforderlich und muss offen sein!",
         "mightPlaceholder": "Genaue Macht (Z.B.: 1b 200m oder 500m)",
         "recognizedMight": "✅ Erkannt: {{might}}M. Preis angepasst!",
         "usedForGifts": "Für Geschenke verwendet:",
@@ -1935,7 +2063,7 @@ const resources = {
         "selectItemsFirst": "Wähle Artikel zum Hinzufügen",
         "loadingBuilder": "Konfigurator wird geladen...",
         "errorNotEnoughGems": "Nicht genug Gems! Erhöhe die Paketanzahl auf der linken Seite.",
-        "errorFillData": "Bitte fülle deine Spieldaten aus (Nickname und Genaue Macht)!",
+        "errorFillData": "Bitte alle Pflichtdaten ausfüllen: Nickname, Gilde und Macht!",
         "successAdded": "Bestellung zum Warenkorb hinzugefügt!",
         "giftName": "Geschenke für {{amount}} Gems"
       },
@@ -1980,7 +2108,18 @@ const resources = {
           "emptyDesc": "Neue Angebote werden vom Treuhänder geprüft und täglich hinzugefügt."
         }
       },
-      "accounts": {
+            "accounts": {
+        "searchPlaceholder": "Suche nach Titel oder ID (z.B. ID 5)",
+        "filters": "Filter",
+        "minPrice": "Mindestpreis ($)",
+        "maxPrice": "Höchstpreis ($)",
+        "sorting": "Sortierung",
+        "sortNewest": "Neueste zuerst",
+        "sortPriceAsc": "Preis: Aufsteigend",
+        "sortPriceDesc": "Preis: Absteigend",
+        "resetFilters": "Filter zurücksetzen",
+        "noPhotos": "Keine Fotos verfügbar",
+        "noDesc": "Keine Beschreibung vorhanden.",
         "title": "Account-Galerie",
         "subtitle": "Top Accounts mit verifizierten Stats",
         "filter": {
@@ -2119,7 +2258,16 @@ const resources = {
           "gold": "Gold"
         }
       },
-      "cart": {
+            "cart": {
+        "promoOnlyRss": "Dieser Gutschein gilt nur für Ressourcen-Pakete (RSS). Füge Ressourcen zum Warenkorb hinzu!",
+        "promoOnlyGems": "Dieser Gutschein gilt nur für Gems. Füge Gems zum Warenkorb hinzu!",
+        "promoOnlyAccounts": "Dieser Gutschein gilt nur für Accounts.",
+        "promoOnlyOther": "Dieser Gutschein gilt nur für sonstige Artikel.",
+        "storeOffline": "🌙 Bestellungen sind im Offline-Modus vorübergehend pausiert!",
+        "offlineBtn": "🌙 Bestellungen vorübergehend pausiert (Offline)",
+        "giftPromoItem": "🎁 GESCHENK (Gutschein: {{code}})",
+        "discountPromoItem": "🏷️ RABATT (Gutschein: {{code}})",
+        "priceForGuild": "Gildenpreis",
         "title": "Kasse",
         "empty": "Ihr Warenkorb ist leer",
         "emptyDesc": "Aber Sie können Ihren Promo-Code immer noch rechts überprüfen 👉",
@@ -2185,7 +2333,27 @@ const resources = {
         "priceForGuild": "Preis für Gildenmitglieder",
         "item": "Artikel"
       },
-      "profile": {
+            "profile": {
+        "forgot": {
+          "title": "Passwort wiederherstellen",
+          "desc": "Gib die E-Mail-Adresse deines Kontos ein.",
+          "emailPlaceholder": "Deine E-Mail",
+          "sendBtn": "Link senden",
+          "rememberPass": "Passwort erinnert?",
+          "back": "Zurück"
+        },
+        "telegram": {
+          "connected": "Konto verbunden",
+          "unlink": "Trennen"
+        },
+        "avatar": {
+          "formatNotice": "PNG, JPG oder WEBP (bis zu 10 MB)"
+        },
+        "receipt": {
+          "title": "Elektronischer Beleg",
+          "method": "METHODE:",
+          "paid": "Bezahlt"
+        },
         "title": "Mein Konto",
         "welcome": "Willkommen",
         "balance": "Münzguthaben",
@@ -2224,7 +2392,8 @@ const resources = {
           "logoutOther": "Von anderen Geräten abmelden",
           "current": "Aktuell"
         },
-        "orders": {
+                "orders": {
+          "ticketClosed": "Ticket geschlossen",
           "title": "Mein Bestellverlauf",
           "empty": "Hier ist es leer",
           "emptyDesc": "Sie haben noch nichts bestellt.",

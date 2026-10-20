@@ -217,28 +217,28 @@ const Cart = () => {
         if (pTarget === 'rss') {
           hasMatchingItem = cart.some(it => it.type === 'rss' || it.type === 'resources');
           if (!hasMatchingItem) {
-            toast.error('Цей промокод діє тільки на Паки Ресурсів (RSS). Додайте ресурси у кошик!');
+            toast.error(t('cart.promoOnlyRss', 'Цей промокод діє тільки на Паки Ресурсів (RSS). Додайте ресурси у кошик!'));
             setIsApplyingPromo(false);
             return;
           }
         } else if (pTarget === 'gems') {
           hasMatchingItem = cart.some(it => it.type === 'gems' || it.type === 'gem');
           if (!hasMatchingItem) {
-            toast.error('Цей промокод діє тільки на Сапфіри (Gems). Додайте сапфіри у кошик!');
+            toast.error(t('cart.promoOnlyGems', 'Цей промокод діє тільки на Сапфіри (Gems). Додайте сапфіри у кошик!'));
             setIsApplyingPromo(false);
             return;
           }
         } else if (pTarget === 'accounts') {
           hasMatchingItem = cart.some(it => it.type === 'account' || it.type === 'acc');
           if (!hasMatchingItem) {
-            toast.error('Цей промокод діє тільки на Акаунти.');
+            toast.error(t('cart.promoOnlyAccounts', 'Цей промокод діє тільки на Акаунти.'));
             setIsApplyingPromo(false);
             return;
           }
         } else if (pTarget === 'other') {
           hasMatchingItem = cart.some(it => it.type === 'special' || it.type === 'other');
           if (!hasMatchingItem) {
-            toast.error('Цей промокод діє тільки на Послуги.');
+            toast.error(t('cart.promoOnlyOther', 'Цей промокод діє тільки на Послуги.'));
             setIsApplyingPromo(false);
             return;
           }
@@ -260,7 +260,7 @@ const Cart = () => {
     if (cart.length === 0) return;
 
     if (hasOfflineItems) {
-      toast.error(storeStatus.offline_message || '🌙 Створення замовлень тимчасово призупинено в офлайн-режимі!', { duration: 5000 });
+      toast.error(storeStatus.offline_message || t('cart.storeOffline', '🌙 Створення замовлень тимчасово призупинено в офлайн-режимі!'), { duration: 5000 });
       return;
     }
 
@@ -957,7 +957,7 @@ const Cart = () => {
               {cart.length === 0 
                 ? t('cart.empty', 'Кошик порожній') 
                 : hasOfflineItems
-                  ? '🌙 Замовлення тимчасово призупинено (Офлайн)'
+                  ? t('cart.offlineBtn', '🌙 Замовлення тимчасово призупинено (Офлайн)')
                   : paymentMethod === 'balance' 
                     ? t('cart.payBalanceBtn', 'Сплатити з балансу') 
                     : t('cart.createTicketBtn', 'Створити тікет на оплату')}

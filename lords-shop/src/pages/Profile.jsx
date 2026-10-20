@@ -775,23 +775,23 @@ const Profile = ({ defaultRegister = false }) => {
           <div className="w-20 h-20 bg-amber-900/30 text-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(245,158,11,0.2)] rotate-3">
             <Mail className="w-10 h-10 drop-shadow-md" />
           </div>
-          <h2 className="text-3xl font-black text-white mb-2 uppercase">Відновлення</h2>
-          <p className="text-zinc-400 text-sm font-medium mb-8 text-center">Введіть email, який ви вказували при реєстрації.</p>
+          <h2 className="text-3xl font-black text-white mb-2 uppercase">{t('profile.forgot.title', 'Відновлення')}</h2>
+          <p className="text-zinc-400 text-sm font-medium mb-8 text-center">{t('profile.forgot.desc', 'Введіть email, який ви вказували при реєстрації.')}</p>
 
           <form className="w-full bg-zinc-900/60 backdrop-blur-md border border-zinc-800 p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden" onSubmit={handleForgotSubmit}>
             <div className="mb-6 relative group z-10">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-amber-500 transition-colors" />
-              <input required type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="Ваш Email" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white text-sm focus:border-amber-500 outline-none transition-all shadow-inner font-medium" />
+              <input required type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder={t('profile.forgot.emailPlaceholder', 'Ваш Email')} className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white text-sm focus:border-amber-500 outline-none transition-all shadow-inner font-medium" />
             </div>
 
             <button disabled={isLoading} type="submit" className="relative z-10 w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-zinc-950 font-black py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:scale-[1.02] flex items-center justify-center gap-2 uppercase tracking-wide">
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />} Відправити лист
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />} {t('profile.forgot.sendBtn', 'Відправити лист')}
             </button>
 
             <div className="mt-8 text-center text-sm text-zinc-500 border-t border-zinc-800/50 pt-6 font-medium relative z-10">
-              Згадали пароль? 
+              {t('profile.forgot.rememberPass', 'Згадали пароль?')} 
               <button type="button" onClick={() => setIsForgotView(false)} className="text-amber-500 hover:text-amber-400 font-black tracking-wide transition-colors ml-1 uppercase">
-                Повернутись
+                {t('profile.forgot.back', 'Повернутись')}
               </button>
             </div>
           </form>
@@ -1083,7 +1083,7 @@ const Profile = ({ defaultRegister = false }) => {
                       <div className="flex flex-col sm:flex-row items-center gap-4">
                         <div className="flex-1 flex flex-col">
                           <span className="text-emerald-400 text-sm font-bold flex items-center gap-2">
-                            <CheckCircle2 className="w-5 h-5" /> Акаунт підключено
+                            <CheckCircle2 className="w-5 h-5" /> {t('profile.telegram.connected', 'Акаунт підключено')}
                           </span>
                           <span className="text-zinc-500 text-xs mt-1">ID: {telegramId}</span>
                         </div>
@@ -1093,7 +1093,7 @@ const Profile = ({ defaultRegister = false }) => {
                           className="w-full sm:w-auto px-6 py-3 bg-red-950/50 hover:bg-red-900 text-red-500 hover:text-white font-black uppercase tracking-wider text-xs rounded-xl flex items-center justify-center gap-2 transition-all border border-red-900/50 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                           {isLinkingTg ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} 
-                          Відв'язати
+                          {t('profile.telegram.unlink', "Відв'язати")}
                         </button>
                       </div>
                     ) : (
@@ -1134,7 +1134,7 @@ const Profile = ({ defaultRegister = false }) => {
                           <span>{t('profile.settings.uploadAvatar', 'Завантажити фото')}</span>
                           <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                         </label>
-                        <p className="text-[11px] text-zinc-500 mt-1.5">PNG, JPG або WEBP (до 10 МБ)</p>
+                        <p className="text-[11px] text-zinc-500 mt-1.5">{t('profile.avatar.formatNotice', 'PNG, JPG або WEBP (до 10 МБ)')}</p>
                       </div>
                     </div>
                   </div>
@@ -1310,7 +1310,7 @@ const Profile = ({ defaultRegister = false }) => {
                                           </div>
                                           <div className="min-w-0">
                                             <div className="truncate font-semibold">{item.product?.name || item.product?.title || 'Товар'}</div>
-                                            {item.userData?.nickname && <div className="text-xs text-zinc-500">Нікнейм: {item.userData.nickname}</div>}
+                                            {item.userData?.nickname && <div className="text-xs text-zinc-500">{t('profile.orders.nickname', 'Нікнейм')}: {item.userData.nickname}</div>}
                                           </div>
                                         </div>
                                         <div className="text-white whitespace-nowrap"><PriceDisplay price={parseFloat(item.price || 0)} size="sm" /></div>
@@ -1318,7 +1318,7 @@ const Profile = ({ defaultRegister = false }) => {
                                     ))}
                                   </div>
                                   <div className="border-t border-dashed border-zinc-700 pt-4 flex justify-between items-end relative z-10">
-                                    <div className="text-xs font-mono text-zinc-500 uppercase">МЕТОД: {order.paymentMethod}</div>
+                                    <div className="text-xs font-mono text-zinc-500 uppercase">{t('profile.receipt.method', 'МЕТОД:')} {order.paymentMethod}</div>
                                     <div className="text-right">
                                       <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">{t('profile.receipt.paid', 'Сплачено')}</div>
                                       <div className="text-2xl font-black text-emerald-400"><PriceDisplay price={parseFloat(order.total || 0)} size="lg" /></div>
@@ -1338,7 +1338,7 @@ const Profile = ({ defaultRegister = false }) => {
                                         </div>
                                         <div className="min-w-0">
                                           <div className="text-base font-bold text-zinc-200 truncate">{item.product?.name || item.product?.title || 'Товар'}</div>
-                                          {item.userData?.nickname && <div className="text-xs text-zinc-500 mt-1 font-medium truncate">Нікнейм: <span className="text-zinc-300">{item.userData.nickname}</span></div>}
+                                          {item.userData?.nickname && <div className="text-xs text-zinc-500 mt-1 font-medium truncate">{t('profile.orders.nickname', 'Нікнейм')}: <span className="text-zinc-300">{item.userData.nickname}</span></div>}
                                         </div>
                                       </div>
                                       <div className="text-base font-black text-amber-500 flex-shrink-0"><PriceDisplay price={parseFloat(item.price || 0)} /></div>
@@ -1377,7 +1377,7 @@ const Profile = ({ defaultRegister = false }) => {
                                       </div>
                                     ))
                                   ) : (
-                                    <div className="m-auto text-zinc-600 text-sm font-medium">Немає повідомлень. Напишіть щось, щоб почати діалог!</div>
+                                    <div className="m-auto text-zinc-600 text-sm font-medium">{t('profile.orders.chatEmpty', 'Немає повідомлень. Напишіть щось, щоб почати діалог!')}</div>
                                   )}
                                 </div>
 
@@ -1385,7 +1385,7 @@ const Profile = ({ defaultRegister = false }) => {
                                   <div className="flex gap-3 items-center bg-zinc-900 p-2 pl-4 rounded-2xl border border-zinc-800 relative z-10 focus-within:border-amber-500/50 transition-colors">
                                     <input 
                                       type="text" 
-                                      placeholder="Напишіть повідомлення..."
+                                      placeholder={t('profile.orders.chatPlaceholder', 'Напишіть повідомлення...')}
                                       value={chatInputs[order.id] || ''}
                                       onChange={(e) => setChatInputs(prev => ({...prev, [order.id]: e.target.value}))}
                                       onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(order.id); }}
@@ -1400,7 +1400,7 @@ const Profile = ({ defaultRegister = false }) => {
                                   </div>
                                 ) : (
                                   <div className="text-center p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500 text-xs font-bold uppercase tracking-wider relative z-10">
-                                    Тікет закрито (Замовлення {order.status === 'cancelled' ? 'скасовано' : 'завершено'})
+                                    {t('profile.orders.ticketClosed', 'Тікет закрито')} ({t('profile.orders.orderNum', 'Замовлення #')}{order.id} {order.status === 'cancelled' ? t('profile.orders.status.cancelled', 'скасовано') : t('profile.orders.status.completed', 'завершено')})
                                   </div>
                                 )}
                               </div>
