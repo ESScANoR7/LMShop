@@ -1244,7 +1244,7 @@ def process_telegram_update(data: dict):
 
                         if not promo or promo.is_active == 0:
                             is_valid, err_msg = False, "Промокод недійсний або деактивований." if is_uk else "Invalid or inactive promo code."
-                        elif promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
+                        elif (promo.max_uses or 0) > 0 and (promo.current_uses or 0) >= (promo.max_uses or 0):
                             is_valid, err_msg = False, "Ліміт використань промокоду вичерпано." if is_uk else "Usage limit reached."
                         elif promo.expiry_date:
                             try:
@@ -1305,26 +1305,40 @@ def process_telegram_update(data: dict):
                                 complex_id = f"{prefix}{item_id}"
 
                                 is_eligible = False
-                                if p_target in ["all", "global", ""] or not target_ids:
+                                if p_target in ["all", "global", ""]:
                                     is_eligible = True
-                                elif "all" in target_ids or "global" in target_ids or f"{prefix}all" in target_ids:
-                                    is_eligible = True
-                                elif p_target in ["rss", "resources", "res"] and item_group in ["rss", "resources", "res"]:
-                                    is_eligible = True
-                                elif p_target in ["gems", "gem", "sapphires"] and item_group in ["gems", "gem"]:
-                                    is_eligible = True
-                                elif p_target in ["other", "special", "oth"] and item_group in ["other", "special", "oth"]:
-                                    is_eligible = True
-                                elif p_target in ["accounts", "account", "acc"] and item_group in ["accounts", "account", "acc"]:
-                                    is_eligible = True
-                                elif p_target == "guild":
-                                    is_eligible = True
-                                elif p_target == "specific" or target_ids:
-                                    if complex_id in target_ids or str(item_id) in target_ids or f"{prefix}all" in target_ids:
+                                elif p_target in ["rss", "resources", "res"]:
+                                    if item_group in ["rss", "resources", "res"]:
                                         is_eligible = True
-
-                                if not is_eligible:
-                                    is_valid, err_msg = False, "Цей промокод не діє на обраний товар." if is_uk else "This promo code is not valid for this item."
+                                    else:
+                                        is_valid, err_msg = False, "Цей промокод діє лише на Ресурси (RSS)." if is_uk else "This promo code is valid for Resources only."
+                                elif p_target in ["gems", "gem", "sapphires"]:
+                                    if item_group in ["gems", "gem", "sapphires"]:
+                                        is_eligible = True
+                                    else:
+                                        is_valid, err_msg = False, "Цей промокод діє лише на Сапфіри (Gems)." if is_uk else "This promo code is valid for Gems only."
+                                elif p_target in ["other", "special", "oth"]:
+                                    if item_group in ["other", "special", "oth"]:
+                                        is_eligible = True
+                                    else:
+                                        is_valid, err_msg = False, "Цей промокод діє лише на Інші товари." if is_uk else "This promo code is valid for Other Items only."
+                                elif p_target in ["accounts", "account", "acc"]:
+                                    if item_group in ["accounts", "account", "acc"]:
+                                        is_eligible = True
+                                    else:
+                                        is_valid, err_msg = False, "Цей промокод діє лише на Акаунти." if is_uk else "This promo code is valid for Accounts only."
+                                elif p_target == "guild":
+                                    if not target_ids or "all" in target_ids or f"{prefix}all" in target_ids or complex_id in target_ids:
+                                        is_eligible = True
+                                    else:
+                                        is_valid, err_msg = False, "Цей промокод не діє на обраний товар." if is_uk else "This promo code is not valid for this item."
+                                elif p_target == "specific" or target_ids:
+                                    if complex_id in target_ids or str(item_id) in target_ids or f"{prefix}all" in target_ids or "all" in target_ids:
+                                        is_eligible = True
+                                    else:
+                                        is_valid, err_msg = False, "Цей промокод не діє на обраний товар." if is_uk else "This promo code is not valid for this item."
+                                else:
+                                    is_eligible = True
 
                         if not is_valid:
                             tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",

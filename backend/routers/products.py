@@ -554,7 +554,7 @@ def validate_promo_code(code: str, total: float = 0.0, db: Session = Depends(get
     if not promo.is_active:
         return {"valid": False, "message": "Промокод деактивовано"}
 
-    if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
+    if (promo.max_uses or 0) > 0 and (promo.current_uses or 0) >= (promo.max_uses or 0):
         return {"valid": False, "message": "Ліміт використань вичерпано"}
 
     if promo.expiry_date:

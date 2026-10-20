@@ -853,7 +853,7 @@ async def checkout(request: Request, order: schemas.OrderData, background_tasks:
         promo_db = db.query(models.PromoCodeDB).filter(models.PromoCodeDB.code == promo_code_clean).first()
         if not promo_db or promo_db.is_active == 0:
             raise HTTPException(status_code=400, detail="Промокод недійсний або деактивований")
-        if promo_db.max_uses > 0 and promo_db.current_uses >= promo_db.max_uses:
+        if (promo_db.max_uses or 0) > 0 and (promo_db.current_uses or 0) >= (promo_db.max_uses or 0):
             raise HTTPException(status_code=400, detail="Ліміт використання промокоду вичерпано")
         if verified_subtotal < promo_db.min_order_amount:
             raise HTTPException(status_code=400, detail=f"Мінімальна сума для промокоду: ${promo_db.min_order_amount}")
@@ -908,6 +908,9 @@ async def checkout(request: Request, order: schemas.OrderData, background_tasks:
             else:
                 eligible_sum = verified_subtotal
 
+            if promo_db.target != "guild" and p_target not in ["all", "global", ""] and eligible_sum <= 0.0:
+                raise HTTPException(status_code=400, detail="Цей промокод не діє на обрані товари у замовленні")
+
             if promo_db.type == "percent":
                 try:
                     val_pct = float(promo_db.value)
@@ -957,7 +960,7 @@ async def checkout(request: Request, order: schemas.OrderData, background_tasks:
     # Фіксація використання промокоду
     if promo_db:
         promo_db.current_uses = (promo_db.current_uses or 0) + 1
-        if promo_db.max_uses > 0 and promo_db.current_uses >= promo_db.max_uses:
+        if (promo_db.max_uses or 0) > 0 and (promo_db.current_uses or 0) >= (promo_db.max_uses or 0):
             promo_db.is_active = 0
         db.commit()
         verified_cart_items.append({
