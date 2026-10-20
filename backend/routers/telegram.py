@@ -18,7 +18,7 @@ import schemas
 from utils import (
     get_current_user, get_current_admin, escape_html,
     create_access_token, create_refresh_token, ACCESS_TOKEN_EXPIRE_MINUTES,
-    check_telegram_offline, tg_session
+    check_telegram_offline, tg_session, safe_tg_post
 )
 from routers.orders import _process_order_status_change
 
@@ -131,12 +131,13 @@ LINK_TOKENS = {}
 
 
 # 🔥 ДОПОМІЖНА ФУНКЦІЯ: ГЕНЕРАЦІЯ КЛАВІАТУРИ ЧЕКАУТУ З ПРОМОКОДОМ 🔥
-def get_checkout_markup(user, final_price, has_promo, is_uk):
+def get_checkout_markup(user, final_price, has_promo, is_uk, item_group=None, item_id=None):
+    suffix = f"_{item_group}_{item_id}" if (item_group and item_id) else ""
     if final_price <= 0:
         pay_btn = "🎁 Оформити безкоштовно ($0.00)" if is_uk else "🎁 Order for Free ($0.00)"
         return {
             "inline_keyboard": [
-                [{"text": pay_btn, "callback_data": "statepay_free"}]
+                [{"text": pay_btn, "callback_data": f"statepay_free{suffix}"}]
             ]
         }
 
@@ -146,7 +147,7 @@ def get_checkout_markup(user, final_price, has_promo, is_uk):
     if user:
         if user.balance >= final_price:
             bal_btn = f"🪙 Оплатити з балансу (${final_price:.2f})" if is_uk else f"🪙 Pay from balance (${final_price:.2f})"
-            kb["inline_keyboard"].append([{"text": bal_btn, "callback_data": "statepay_bal"}])
+            kb["inline_keyboard"].append([{"text": bal_btn, "callback_data": f"statepay_bal{suffix}"}])
         else:
             bal_btn = f"🪙 Оплатити з балансу (Недостатньо коштів)" if is_uk else f"🪙 Pay from balance (Insufficient funds)"
             kb["inline_keyboard"].append([{"text": bal_btn, "callback_data": "low_balance_warn"}])
@@ -156,7 +157,7 @@ def get_checkout_markup(user, final_price, has_promo, is_uk):
 
     # 2. Оплата в чаті
     chat_btn = "💬 Оплатити в чаті" if is_uk else "💬 Pay in Chat"
-    kb["inline_keyboard"].append([{"text": chat_btn, "callback_data": "statepay_chat"}])
+    kb["inline_keyboard"].append([{"text": chat_btn, "callback_data": f"statepay_chat{suffix}"}])
 
     # 3. Ввести промокод
     if not has_promo and final_price > 0:
@@ -592,13 +593,47 @@ def process_telegram_update(data: dict):
 
             # 🔥 ГЛОБАЛЬНА ФІНАЛЬНА ОПЛАТА 🔥
             elif action_data.startswith("statepay_"):
-                tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery",
+                safe_tg_post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery",
                               json={"callback_query_id": callback["id"]})
-                pay_method = action_data.split("_")[1]
+                parts = action_data.split("_")
+                pay_method = parts[1]
+                cb_item_group = parts[2] if len(parts) > 2 else None
+                try:
+                    cb_item_id = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else None
+                except (ValueError, TypeError):
+                    cb_item_id = None
 
-                if chat_id_str not in USER_STATES or USER_STATES[chat_id_str]["step"] != "ready_to_pay":
-                    text_expired = "❌ Сесія застаріла. Будь ласка, оберіть товар на вітрині ще раз." if is_uk else "❌ Session expired. Please select the product on the storefront again."
-                    tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                # Самовідновлення стейту якщо втрачено в пам'яті (між воркерами чи після перезапуску)
+                if chat_id_str not in USER_STATES or USER_STATES[chat_id_str].get("step") != "ready_to_pay":
+                    if cb_item_group and cb_item_id:
+                        rec_name, rec_price, rec_req = "", 0.0, ""
+                        if cb_item_group == "acc":
+                            db_a = db.query(models.AccountDB).filter(models.AccountDB.id == cb_item_id).first()
+                            if db_a and db_a.status == "active":
+                                rec_name, rec_price = db_a.title, float(db_a.price)
+                        elif cb_item_group == "res":
+                            db_r = db.query(models.ResourceDB).filter(models.ResourceDB.id == cb_item_id).first()
+                            if db_r:
+                                rec_name, rec_price = db_r.name, float(db_r.price)
+                        elif cb_item_group == "oth":
+                            db_o = db.query(models.OtherItemDB).filter(models.OtherItemDB.id == cb_item_id).first()
+                            if db_o:
+                                rec_name, rec_price = db_o.name, float(db_o.price)
+                                rec_req = getattr(db_o, "requiredFields", "") or ""
+                        if rec_name:
+                            USER_STATES[chat_id_str] = {
+                                "step": "ready_to_pay",
+                                "item_group": cb_item_group,
+                                "item_id": cb_item_id,
+                                "item_name": rec_name,
+                                "req_fields": rec_req,
+                                "final_price": rec_price,
+                                "original_price": rec_price
+                            }
+
+                if chat_id_str not in USER_STATES or USER_STATES[chat_id_str].get("step") != "ready_to_pay":
+                    text_expired = "❌ Сесія застаріла або товар більше недоступний. Будь ласка, оберіть товар на вітрині ще раз." if is_uk else "❌ Session expired or item is no longer available. Please select the product on the storefront again."
+                    safe_tg_post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
                                   json={"chat_id": chat_id, "text": text_expired})
                     return {"status": "ok"}
 
@@ -646,11 +681,12 @@ def process_telegram_update(data: dict):
                     initial_status = "awaiting_payment"
                     pay_text = "Готівка (чат) / Cash"
 
-                # Якщо куплено акаунт і статус оплачений - маркуємо як 'sold'
-                if state.get("item_group") == "acc" and initial_status == "paid_processing":
+                # Якщо куплено акаунт - негайно маркуємо як 'sold' для блокування повторної покупки
+                if state.get("item_group") == "acc":
                     db.query(models.AccountDB).filter(
                         models.AccountDB.id == state["item_id"]
                     ).update({"status": "sold"}, synchronize_session=False)
+                    db.commit()
 
                 if is_uk:
                     details_text = f"💎 Кількість: {state.get('amount')} шт." if state[
@@ -694,41 +730,44 @@ def process_telegram_update(data: dict):
 
                 if TELEGRAM_FORUM_CHAT_ID:
                     buyer_name = user.username if user else clicker_name
-                    res = tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/createForumTopic",
-                                        json={"chat_id": TELEGRAM_FORUM_CHAT_ID,
-                                              "name": f"#{new_order.id} {buyer_name}"}).json()
-                    if res.get("ok"):
-                        topic_id = res["result"]["message_thread_id"]
-                        db.add(models.OrderTopicDB(order_id=new_order.id, topic_id=topic_id))
-                        db.commit()
+                    try:
+                        res = safe_tg_post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/createForumTopic",
+                                            json={"chat_id": TELEGRAM_FORUM_CHAT_ID,
+                                                  "name": f"#{new_order.id} {buyer_name}"}, timeout=8)
+                        if res.get("ok"):
+                            topic_id = res["result"]["message_thread_id"]
+                            db.add(models.OrderTopicDB(order_id=new_order.id, topic_id=topic_id))
+                            db.commit()
 
-                        if pay_method in ["bal", "free"]:
-                            keyboard = {"inline_keyboard": [
-                                [{"text": "🚚 Товар видано", "callback_data": f"admin_delivered_{new_order.id}"}],
-                                [{"text": "🔴 Скасувати (Повернення)", "callback_data": f"admin_cancelled_{new_order.id}"}]
-                            ]}
-                        else:
-                            keyboard = {"inline_keyboard": [
-                                [{"text": "🟢 Оплачено (В роботу)", "callback_data": f"admin_paid_processing_{new_order.id}"}],
-                                [{"text": "🚚 Товар видано", "callback_data": f"admin_delivered_{new_order.id}"}],
-                                [{"text": "🔴 Скасувати", "callback_data": f"admin_cancelled_{new_order.id}"}]
-                            ]}
+                            if pay_method in ["bal", "free"]:
+                                keyboard = {"inline_keyboard": [
+                                    [{"text": "🚚 Товар видано", "callback_data": f"admin_delivered_{new_order.id}"}],
+                                    [{"text": "🔴 Скасувати (Повернення)", "callback_data": f"admin_cancelled_{new_order.id}"}]
+                                ]}
+                            else:
+                                keyboard = {"inline_keyboard": [
+                                    [{"text": "🟢 Оплачено (В роботу)", "callback_data": f"admin_paid_processing_{new_order.id}"}],
+                                    [{"text": "🚚 Товар видано", "callback_data": f"admin_delivered_{new_order.id}"}],
+                                    [{"text": "🔴 Скасувати", "callback_data": f"admin_cancelled_{new_order.id}"}]
+                                ]}
 
-                        details_admin = f"💎 Кількість: {state.get('amount')} шт." if state[
-                                                                                         "item_group"] == "gem" else f"📦 Список товарів:\n{state.get('custom_text')}" if \
-                        state["item_group"] == "oth" else ""
-                        promo_admin = f"\n🎟 <b>Промокод:</b> {promo_applied}" if promo_applied else ""
-                        msg_admin = f"<b>ЗАМОВЛЕННЯ #{new_order.id}</b>\n💳 <b>Оплата:</b> {pay_text}\n💰 <b>Сума:</b> ${total_price:.2f}{promo_admin}\n👤 <b>Покупець:</b> {buyer_name}\n\n🛒 <b>Товар:</b>\n1. {item_name} | ${total_price:.2f}\n{details_admin}\n\n🔸 <i>Очікуємо дані від клієнта.</i>"
+                            details_admin = f"💎 Кількість: {state.get('amount')} шт." if state[
+                                                                                             "item_group"] == "gem" else f"📦 Список товарів:\n{state.get('custom_text')}" if \
+                            state["item_group"] == "oth" else ""
+                            promo_admin = f"\n🎟 <b>Промокод:</b> {promo_applied}" if promo_applied else ""
+                            msg_admin = f"<b>ЗАМОВЛЕННЯ #{new_order.id}</b>\n💳 <b>Оплата:</b> {pay_text}\n💰 <b>Сума:</b> ${total_price:.2f}{promo_admin}\n👤 <b>Покупець:</b> {buyer_name}\n\n🛒 <b>Товар:</b>\n1. {item_name} | ${total_price:.2f}\n{details_admin}\n\n🔸 <i>Очікуємо дані від клієнта.</i>"
 
-                        res_msg = tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                                                json={"chat_id": TELEGRAM_FORUM_CHAT_ID, "message_thread_id": topic_id,
-                                                      "text": msg_admin, "parse_mode": "HTML",
-                                                      "reply_markup": keyboard}).json()
+                            res_msg = safe_tg_post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                                                    json={"chat_id": TELEGRAM_FORUM_CHAT_ID, "message_thread_id": topic_id,
+                                                          "text": msg_admin, "parse_mode": "HTML",
+                                                          "reply_markup": keyboard}, timeout=8)
 
-                        if res_msg.get("ok"):
-                            tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/unpinChatMessage",
-                                          json={"chat_id": TELEGRAM_FORUM_CHAT_ID,
-                                                "message_id": res_msg["result"]["message_id"]})
+                            if res_msg.get("ok"):
+                                safe_tg_post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/unpinChatMessage",
+                                              json={"chat_id": TELEGRAM_FORUM_CHAT_ID,
+                                                    "message_id": res_msg["result"]["message_id"]}, timeout=5)
+                    except Exception as e:
+                        print(f"⚠️ Помилка створення теми замовлення #{new_order.id} в Telegram:", e)
 
                 req_fields = state.get("req_fields", "")
                 if req_fields:
@@ -957,7 +996,13 @@ def process_telegram_update(data: dict):
                         item_name, total_price, req_fields = "", 0.0, ""
                         if item_group == "acc":
                             db_item = db.query(models.AccountDB).filter(models.AccountDB.id == item_id).first()
-                            if db_item: item_name, total_price = db_item.title, float(db_item.price)
+                            if db_item:
+                                if db_item.status != "active":
+                                    sold_text = "❌ Цей акаунт вже продано або він недоступний." if is_uk else "❌ This account has already been sold."
+                                    safe_tg_post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                                                  json={"chat_id": chat_id, "text": sold_text})
+                                    return {"status": "ok"}
+                                item_name, total_price = db_item.title, float(db_item.price)
                         elif item_group == "res":
                             db_item = db.query(models.ResourceDB).filter(models.ResourceDB.id == item_id).first()
                             if db_item: item_name, total_price = db_item.name, float(db_item.price)
@@ -984,7 +1029,7 @@ def process_telegram_update(data: dict):
                             "original_price": total_price
                         }
 
-                        kb = get_checkout_markup(user_in_db, total_price, False, is_uk)
+                        kb = get_checkout_markup(user_in_db, total_price, False, is_uk, item_group=item_group, item_id=item_id)
                         text_order = f"🛍 <b>Оформлення замовлення</b>\n\nВи обрали: <b>{item_name}</b>\n💰 Сума: <b>${total_price:.2f}</b>\n\nОберіть спосіб оплати:" if is_uk else f"🛍 <b>Checkout</b>\n\nYou selected: <b>{item_name}</b>\n💰 Total: <b>${total_price:.2f}</b>\n\nChoose payment method:"
                         tg_session.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
                                       json={"chat_id": chat_id, "text": text_order, "parse_mode": "HTML",

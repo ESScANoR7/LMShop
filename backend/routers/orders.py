@@ -9,7 +9,7 @@ from database import get_db, SessionLocal
 import models
 import schemas
 from utils import (
-    tg_session,
+    tg_session, safe_tg_post,
     get_current_admin, get_current_user, get_current_user_optional, check_is_admin,
     escape_html, generate_receipt_text, generate_full_order_text, check_cart_blocked_by_offline,
     limiter
@@ -319,7 +319,7 @@ def _process_order_status_change(db: Session, order_id: int, new_status: str, co
         try:
             cart_items_cancel = json.loads(db_order.cart_data)
             for ci in cart_items_cancel:
-                if isinstance(ci, dict) and ci.get("type") in ["account", "acc"]:
+                if isinstance(ci, dict) and (ci.get("type") in ["account", "acc"] or ci.get("item_group") == "acc"):
                     acc_id = ci.get("id") or (ci.get("product") and ci.get("product").get("id"))
                     if acc_id:
                         db.query(models.AccountDB).filter(models.AccountDB.id == acc_id).update({"status": "active"}, synchronize_session=False)
@@ -650,11 +650,11 @@ def dispatch_telegram_order_notification(order_id: int, secure_user_id: int = No
         topic_name = f"#{new_order.id} {buyer_name}"
         topic_id = None
         try:
-            res = tg_session.post(
+            res = safe_tg_post(
                 f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/createForumTopic",
                 json={"chat_id": TELEGRAM_FORUM_CHAT_ID, "name": topic_name},
-                timeout=7
-            ).json()
+                timeout=8
+            )
             if res.get("ok"):
                 topic_id = res["result"]["message_thread_id"]
                 db.add(models.OrderTopicDB(order_id=new_order.id, topic_id=topic_id))
@@ -682,7 +682,7 @@ def dispatch_telegram_order_notification(order_id: int, secure_user_id: int = No
 
             msg_admin = generate_full_order_text(db, new_order, initial_status, hide_finance=False)
             try:
-                res_msg = tg_session.post(
+                res_msg = safe_tg_post(
                     f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
                     json={
                         "chat_id": TELEGRAM_FORUM_CHAT_ID,
@@ -691,17 +691,17 @@ def dispatch_telegram_order_notification(order_id: int, secure_user_id: int = No
                         "parse_mode": "HTML",
                         "reply_markup": keyboard
                     },
-                    timeout=7
-                ).json()
+                    timeout=8
+                )
 
                 if res_msg.get("ok"):
-                    tg_session.post(
+                    safe_tg_post(
                         f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/unpinChatMessage",
                         json={
                             "chat_id": TELEGRAM_FORUM_CHAT_ID,
                             "message_id": res_msg["result"]["message_id"]
                         },
-                        timeout=7
+                        timeout=5
                     )
             except Exception as e:
                 print("Помилка відправки в тему:", e)

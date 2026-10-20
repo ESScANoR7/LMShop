@@ -448,7 +448,7 @@ def generate_short_status_message(db_order, status, worker_name="", is_uk=False)
 
 
 # ==========================================
-# 🚀 ВИСОКОПРОДУКТИВНА СЕСІЯ ДЛЯ TELEGRAM API (KEEP-ALIVE + CONNECTION POOLING)
+# 🚀 ВИСОКОПРОДУКТИВНА СЕСІЯ ДЛЯ TELEGRAM API (KEEP-ALIVE + RETRY ВСІХ МЕТОДІВ)
 # ==========================================
 import requests
 from requests.adapters import HTTPAdapter
@@ -456,9 +456,40 @@ from urllib3.util.retry import Retry
 
 tg_session = requests.Session()
 _adapter = HTTPAdapter(
-    pool_connections=30,
-    pool_maxsize=30,
-    max_retries=Retry(total=2, backoff_factor=0.2, status_forcelist=[500, 502, 503, 504])
+    pool_connections=25,
+    pool_maxsize=25,
+    max_retries=Retry(
+        total=3,
+        connect=3,
+        read=2,
+        backoff_factor=0.3,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS']
+    )
 )
 tg_session.mount("https://", _adapter)
 tg_session.mount("http://", _adapter)
+
+
+def safe_tg_post(url: str, json: dict = None, timeout: int = 8, **kwargs):
+    """
+    Безпечний POST-запит до Telegram API з автоповтором прямим з'єднанням при необхідності.
+    Ніколи не викидає необроблених винятків.
+    """
+    try:
+        res = tg_session.post(url, json=json, timeout=timeout, **kwargs)
+        try:
+            return res.json()
+        except Exception:
+            return {"ok": res.ok, "status_code": res.status_code}
+    except Exception as e:
+        try:
+            res_direct = requests.post(url, json=json, timeout=timeout, **kwargs)
+            try:
+                return res_direct.json()
+            except Exception:
+                return {"ok": res_direct.ok, "status_code": res_direct.status_code}
+        except Exception as e_direct:
+            print(f"⚠️ safe_tg_post failed for {url.split('/')[-1]}: {e_direct}")
+            return {"ok": False, "error": str(e_direct)}
+
