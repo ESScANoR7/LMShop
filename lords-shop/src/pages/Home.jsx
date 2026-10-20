@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, ShieldCheck, Clock, Crown, PackageOpen, Gem, Gift, ArrowRight } from 'lucide-react';
+import { Zap, ShieldCheck, Clock, Crown, PackageOpen, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiGet } from '../config/apiClient';
 import { PriceDisplay } from '../context/CurrencyContext';
@@ -9,8 +9,8 @@ import { API_ENDPOINTS, getFullUrl, getImageUrl } from '../config/api';
 const Home = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [latestAccount, setLatestAccount] = useState(null);
-  const [isLoadingAccount, setIsLoadingAccount] = useState(true);
+  const [featuredAccounts, setFeaturedAccounts] = useState([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
 
   // ==========================================
   // 🕵️ ПАСХАЛКА — 7 КЛІКІВ НА "Lord"
@@ -29,25 +29,21 @@ const Home = () => {
   // ==========================================
 
   useEffect(() => {
-    const loadAccount = async () => {
+    const loadAccounts = async () => {
       try {
         const data = await apiGet(getFullUrl(API_ENDPOINTS.ACCOUNTS));
         if (Array.isArray(data)) {
           const active = data.filter(acc => acc.status === 'active');
-          if (active.length > 0) {
-            const sorted = [...active].sort((a, b) => Number(b.id) - Number(a.id));
-            setLatestAccount(sorted[0]);
-          } else {
-            setLatestAccount(null);
-          }
+          const sorted = [...active].sort((a, b) => Number(b.id) - Number(a.id));
+          setFeaturedAccounts(sorted.slice(0, 3));
         }
       } catch (err) {
-        console.error("Помилка завантаження акаунта на головній:", err);
+        console.error("Помилка завантаження акаунтів на головній:", err);
       } finally {
-        setIsLoadingAccount(false);
+        setIsLoadingAccounts(false);
       }
     };
-    loadAccount();
+    loadAccounts();
   }, []);
 
   return (
@@ -131,18 +127,17 @@ const Home = () => {
           </div>
         </section>
 
-
         {/* ========================================== */}
-        {/* 2. БАНЕР НАЙНОВІШОГО АКАУНТА */}
+        {/* 2. ВІТРИНА АКАУНТІВ (ГАРЯЧІ АКАУНТИ) */}
         {/* ========================================== */}
         <section className="container mx-auto px-4 max-w-6xl">
           <div
-            className="flex items-center justify-between mb-6 pb-4 border-b"
+            className="flex items-center justify-between mb-8 pb-4 border-b"
             style={{ borderColor: 'var(--border-default)' }}
           >
             <div className="flex items-center gap-3">
               <div
-                className="p-2.5 rounded-xl"
+                className="p-2 rounded-xl"
                 style={{
                   background: 'var(--accent-muted)',
                   border: '1px solid var(--border-accent)',
@@ -152,11 +147,11 @@ const Home = () => {
                 <Crown className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black" style={{ color: 'var(--text-primary)' }}>
-                  {t('home.latestAccount.sectionTitle')}
+                <h2 className="text-2xl sm:text-3xl font-black" style={{ color: 'var(--text-primary)' }}>
+                  {t('home.hotAccounts.title', 'Гарячі Акаунти')}
                 </h2>
                 <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {t('home.latestAccount.sectionSubtitle')}
+                  {t('home.hotAccounts.subtitle', 'Топ пропозиції, готові до передачі прямо зараз')}
                 </p>
               </div>
             </div>
@@ -165,175 +160,117 @@ const Home = () => {
               className="flex items-center gap-1.5 font-bold text-xs sm:text-sm transition-colors hover:underline"
               style={{ color: 'var(--gold)' }}
             >
-              {t('home.latestAccount.allBtn')}
+              {t('home.hotAccounts.allBtn', 'Всі акаунти')} <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          {isLoadingAccount ? (
-            <div
-              className="text-center py-16 rounded-3xl border animate-pulse font-bold"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
-            >
-              {t('home.latestAccount.loading')}
+          {isLoadingAccounts ? (
+            <div className="text-center py-16 animate-pulse font-bold" style={{ color: 'var(--text-secondary)' }}>
+              {t('home.hotAccounts.loading', 'Завантаження товарів...')}
             </div>
-          ) : !latestAccount ? (
+          ) : featuredAccounts.length === 0 ? (
             <div
               className="text-center py-12 rounded-3xl p-6 border shadow-lg"
               style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
             >
-              <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--text-primary)' }}>
-                {t('home.latestAccount.emptyTitle')}
-              </h3>
-              <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
-                {t('home.latestAccount.emptyDesc')}
+              <p className="font-bold mb-4" style={{ color: 'var(--text-secondary)' }}>
+                {t('home.hotAccounts.empty', 'Наразі всі акаунти розпродані або оновлюються.')}
               </p>
               <Link
                 to="/resources"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-transform hover:-translate-y-0.5"
                 style={{ background: 'var(--accent)' }}
               >
-                {t('home.hero.btnResources')} <ArrowRight className="w-4 h-4" />
+                {t('home.hero.btnResources', 'Купити ресурси')} <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           ) : (
-            <div
-              className="group relative rounded-3xl border overflow-hidden backdrop-blur-md shadow-2xl transition-all hover:border-amber-500/50"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
-            >
-              <div className="absolute top-0 right-0 w-96 h-96 rounded-full blur-[100px] pointer-events-none opacity-40" style={{ background: 'var(--accent-glow)' }} />
-              
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 sm:p-8 relative z-10 items-center">
-                {/* Зображення / Прев'ю */}
-                <div className="lg:col-span-5 relative">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredAccounts.map(acc => {
+                const firstImg = acc.images && acc.images.length > 0 ? getImageUrl(acc.images[0]) : null;
+
+                return (
                   <div
-                    className="relative aspect-video sm:aspect-[16/10] rounded-2xl overflow-hidden border flex items-center justify-center shadow-lg"
-                    style={{ background: 'var(--bg-base)', borderColor: 'var(--border-default)' }}
+                    key={acc.id}
+                    className="group relative backdrop-blur-md rounded-3xl overflow-hidden transition-all flex flex-col shadow-xl hover:-translate-y-1 border"
+                    style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
                   >
-                    {latestAccount.images && latestAccount.images.length > 0 ? (
-                      <img
-                        src={getImageUrl(latestAccount.images[0])}
-                        alt={latestAccount.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <Crown className="w-16 h-16" style={{ color: 'var(--border-default)' }} />
-                    )}
-
-                    {/* Бедж "Нове надходження" */}
-                    <div className="absolute top-3 left-3">
-                      <span
-                        className="px-3 py-1 text-xs font-black rounded-full shadow-lg backdrop-blur-md border flex items-center gap-1.5"
-                        style={{
-                          background: 'rgba(0,0,0,0.75)',
-                          borderColor: 'var(--border-accent)',
-                          color: 'var(--gold)',
-                        }}
-                      >
-                        {t('home.latestAccount.badge')}
-                      </span>
-                    </div>
-
-                    {/* ID */}
-                    <div className="absolute top-3 right-3">
-                      <span
-                        className="px-2.5 py-1 text-xs font-bold rounded-lg shadow-md backdrop-blur-md border"
-                        style={{
-                          background: 'rgba(0,0,0,0.75)',
-                          borderColor: 'var(--border-default)',
-                          color: '#fff',
-                        }}
-                      >
-                        ID: #{latestAccount.id}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Інформація та Дії */}
-                <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
-                  <div>
-                    <h3
-                      className="text-2xl sm:text-3xl font-black mb-2 tracking-tight line-clamp-2"
-                      style={{ color: 'var(--text-primary)' }}
+                    {/* Фото */}
+                    <div
+                      className="relative aspect-video overflow-hidden flex items-center justify-center"
+                      style={{ background: 'var(--bg-base)' }}
                     >
-                      {latestAccount.title}
-                    </h3>
-
-                    <p
-                      className="text-sm sm:text-base leading-relaxed line-clamp-3 mb-4 font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {latestAccount.shortDesc || latestAccount.description}
-                    </p>
-
-                    {/* Теги */}
-                    {latestAccount.tags && latestAccount.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {latestAccount.tags.slice(0, 5).map(tag => tag.trim() && (
-                          <span
-                            key={tag}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg border shadow-sm"
-                            style={{
-                              background: 'var(--bg-base)',
-                              borderColor: 'var(--border-default)',
-                              color: 'var(--gold)',
-                            }}
-                          >
-                            #{tag.trim()}
-                          </span>
-                        ))}
+                      {firstImg ? (
+                        <img src={firstImg} alt={acc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <Crown className="w-12 h-12" style={{ color: 'var(--border-default)' }} />
+                      )}
+                      <div className="absolute top-3 left-3">
+                        <span
+                          className="px-3 py-1 text-xs font-black rounded-full shadow-lg backdrop-blur-md border"
+                          style={{
+                            background: 'rgba(0,0,0,0.75)',
+                            borderColor: 'var(--border-default)',
+                            color: 'var(--gold)',
+                          }}
+                        >
+                          ID: #{acc.id}
+                        </span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Нижня панель: Ціна та кнопки */}
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t"
-                    style={{ borderColor: 'var(--border-default)' }}
-                  >
-                    <div>
-                      <span className="text-xs font-bold block uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-secondary)' }}>
-                        {t('accountDetails.price', 'Ціна')}
-                      </span>
-                      <PriceDisplay price={latestAccount.price} size="lg" />
                     </div>
 
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <Link
-                        to={`/accounts/${latestAccount.id}`}
-                        className="flex-1 sm:flex-initial px-6 py-3 rounded-xl text-white font-black text-sm tracking-wide shadow-lg transition-all hover:scale-105 flex items-center justify-center gap-2 border"
-                        style={{
-                          background: 'var(--accent)',
-                          borderColor: 'var(--border-accent)',
-                        }}
-                      >
-                        <Crown className="w-4 h-4" style={{ color: 'var(--gold)' }} />
-                        {t('home.latestAccount.viewBtn')}
-                      </Link>
+                    {/* Опис */}
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="text-lg font-black mb-2 line-clamp-1" style={{ color: 'var(--text-primary)' }}>{acc.title}</h3>
+                      <p className="text-xs mb-4 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{acc.shortDesc || acc.description}</p>
 
-                      <Link
-                        to="/accounts"
-                        className="px-5 py-3 rounded-xl font-bold text-sm tracking-wide transition-all border flex items-center justify-center"
-                        style={{
-                          background: 'var(--bg-base)',
-                          borderColor: 'var(--border-default)',
-                          color: 'var(--text-primary)',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-accent)'}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
+                      {acc.tags && acc.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-5 mt-auto">
+                          {acc.tags.slice(0, 3).map(tag => tag && tag.trim() && (
+                            <span
+                              key={tag}
+                              className="text-[10px] font-bold px-2 py-1 rounded-md border"
+                              style={{
+                                background: 'var(--bg-base)',
+                                borderColor: 'var(--border-default)',
+                                color: 'var(--gold)',
+                              }}
+                            >
+                              #{tag.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div
+                        className="flex items-center justify-between pt-4 border-t gap-2"
+                        style={{ borderColor: 'var(--border-default)' }}
                       >
-                        {t('home.latestAccount.allBtn')}
-                      </Link>
+                        <div>
+                          <PriceDisplay price={acc.price} size="md" />
+                        </div>
+                        <Link
+                          to={`/accounts/${acc.id}`}
+                          className="px-4 py-2 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg transition-all hover:scale-105"
+                          style={{ background: 'var(--accent)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-hover)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}
+                        >
+                          {t('home.hotAccounts.details', 'Детальніше')}
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           )}
         </section>
 
         {/* ========================================== */}
-        {/* 4. БЛОК ДОВІРИ */}
+        {/* 3. БЛОК ДОВІРИ */}
         {/* ========================================== */}
         <section className="container mx-auto px-4 max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

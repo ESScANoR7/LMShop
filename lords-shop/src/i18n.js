@@ -196,6 +196,14 @@ const resources = {
           "allBtn": "Всі акаунти каталогу →",
           "emptyTitle": "Каталог акаунтів оновлюється",
           "emptyDesc": "Нові пропозиції перевіряються гарантом та додаються щоденно."
+        },
+        "hotAccounts": {
+          "title": "Гарячі Акаунти",
+          "subtitle": "Топ пропозиції, готові до передачі прямо зараз",
+          "allBtn": "Всі акаунти",
+          "loading": "Завантаження товарів...",
+          "empty": "Наразі всі акаунти розпродані або оновлюються.",
+          "details": "Детальніше"
         }
       },
             "accounts": {
@@ -1151,6 +1159,14 @@ const resources = {
           "allBtn": "All catalog accounts →",
           "emptyTitle": "Account catalog updating",
           "emptyDesc": "New offers are verified by our guarantor and added daily."
+        },
+        "hotAccounts": {
+          "title": "Hot Accounts",
+          "subtitle": "Top offers ready for instant transfer right now",
+          "allBtn": "All accounts",
+          "loading": "Loading items...",
+          "empty": "Currently all accounts are sold out or being updated.",
+          "details": "Details"
         }
       },
             "accounts": {
@@ -2106,6 +2122,14 @@ const resources = {
           "allBtn": "Alle Katalog-Accounts →",
           "emptyTitle": "Account-Katalog wird aktualisiert",
           "emptyDesc": "Neue Angebote werden vom Treuhänder geprüft und täglich hinzugefügt."
+        },
+        "hotAccounts": {
+          "title": "Heiße Accounts",
+          "subtitle": "Top-Angebote bereit zur sofortigen Übergabe",
+          "allBtn": "Alle Accounts",
+          "loading": "Lade Artikel...",
+          "empty": "Derzeit sind alle Accounts ausverkauft oder werden aktualisiert.",
+          "details": "Details"
         }
       },
             "accounts": {
